@@ -30,7 +30,7 @@ include_directories(
 )
 
 #
-# --------- bag to text converter -----
+# --------- performance tool
 #
 add_executable(perf src/perf_ros1.cpp)
 target_link_libraries(perf ${catkin_LIBRARIES})
@@ -40,7 +40,7 @@ target_link_libraries(perf ${catkin_LIBRARIES})
 ## Install ##
 #############
 
-install(TARGETS bag_to_raw
+install(TARGETS perf
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 #############

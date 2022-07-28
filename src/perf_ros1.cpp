@@ -13,13 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <event_array_msgs/EventArray.h>
 #include <event_array_msgs/decode.h>
+#include <ros/ros.h>
 #include <unistd.h>
 
 #include <chrono>
-#include <event_array_msgs/msg/event_array.hpp>
 #include <fstream>
-#include <rclcpp/rclcpp.hpp>
 
 void usage()
 {
@@ -27,24 +27,20 @@ void usage()
   std::cout << "perf <ros_topic>" << std::endl;
 }
 
-using event_array_msgs::msg::EventArray;
-class Perf : public rclcpp::Node
+using event_array_msgs::EventArray;
+
+class Perf
 {
 public:
-  explicit Perf(const std::string & topic, const rclcpp::NodeOptions & options)
-  : Node("perf", options)
+  explicit Perf(const ros::NodeHandle & nh, const std::string & topic) : nh_(nh)
   {
     const int qsize = 1000;
-    auto qos = rclcpp::QoS(rclcpp::KeepLast(qsize)).best_effort().durability_volatile();
-    RCLCPP_INFO_STREAM(this->get_logger(), "subscribing to " << topic);
-    sub_ = this->create_subscription<EventArray>(
-      topic, qos, std::bind(&Perf::eventMsg, this, std::placeholders::_1));
-    timer_ = rclcpp::create_timer(
-      this, this->get_clock(), rclcpp::Duration::from_seconds(2.0),
-      [=]() { this->timerExpired(); });
-    lastTime_ = this->get_clock()->now();
+    ROS_INFO_STREAM("subscribing to " << topic);
+    sub_ = nh_.subscribe(topic, qsize, &Perf::eventMsg, this);
+    timer_ = nh_.createTimer(ros::Duration(2.0), &Perf::timerExpired, this);
+    lastTime_ = ros::Time::now();
   }
-  void eventMsg(EventArray::ConstSharedPtr msg)
+  void eventMsg(const EventArray::ConstPtr & msg)
   {
     size_t idx = 0;
     size_t bytes_per_event = 0;
@@ -55,10 +51,10 @@ public:
       idx = 1;
       bytes_per_event = event_array_msgs::trigger::bytes_per_event;
     } else {
-      RCLCPP_ERROR_STREAM(get_logger(), "unsupported encoding: " << msg->encoding);
+      ROS_ERROR_STREAM("unsupported encoding: " << msg->encoding);
       throw std::runtime_error("unsupported encoding");
     }
-    const rclcpp::Time t_stamp = rclcpp::Time(msg->header.stamp);
+    const ros::Time t_stamp = ros::Time(msg->header.stamp);
     if (lastSeq_[idx] == 0) {
       lastSeq_[idx] = msg->seq - 1;
       lastStamp_ = t_stamp;
@@ -72,14 +68,14 @@ public:
     }
     lastStamp_ = t_stamp;
     numEvents_[idx] += msg->events.size() / bytes_per_event;
-    const auto t = this->get_clock()->now();
-    delay_[idx] += (t - t_stamp).nanoseconds();
+    const auto t = ros::Time::now();
+    delay_[idx] += (t - t_stamp).toNSec();
   }
 
-  void timerExpired()
+  void timerExpired(const ros::TimerEvent &)
   {
-    const auto t = this->get_clock()->now();
-    const double dt = (t - lastTime_).nanoseconds() * 1e-9;  // in milliseconds
+    const auto t = ros::Time::now();
+    const double dt = (t - lastTime_).toNSec() * 1e-9;  // in milliseconds
     for (int i = 0; i < 2; i++) {
       if (numEvents_[i] != 0 && numMsgs_[i] != 0) {
         const std::string label = i == 0 ? "events" : "triggr";
@@ -97,23 +93,25 @@ public:
     }
     lastTime_ = t;
   }
-  // ---------- variables
-  rclcpp::Subscription<EventArray>::SharedPtr sub_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  // ------------ variables
+  ros::NodeHandle nh_;
+  ros::Subscriber sub_;
+  ros::Timer timer_;
   size_t numMsgs_[2]{0, 0};
   size_t numEvents_[2]{0, 0};
   int64_t delay_[2]{0, 0};
   size_t dropped_[2]{0, 0};
   size_t numReverse_[2]{0, 0};
   uint64_t lastSeq_[2]{0, 0};
-  rclcpp::Time lastTime_;
-  rclcpp::Time lastStamp_;
+  ros::Time lastTime_;
+  ros::Time lastStamp_;
 };
 
 int main(int argc, char ** argv)
 {
   std::string topic;
-  rclcpp::init(argc, argv);
+  ros::init(argc, argv, "driver_node");
+
   switch (argc) {
     case 2:
       topic = argv[1];
@@ -122,8 +120,9 @@ int main(int argc, char ** argv)
       usage();
       exit(-1);
   }
-  auto node = std::make_shared<Perf>(topic, rclcpp::NodeOptions());
-  rclcpp::spin(node);  // should not return
-  rclcpp::shutdown();
+
+  ros::NodeHandle pnh("~");
+  Perf perf(pnh, topic);
+  ros::spin();
   return 0;
 }
