@@ -37,6 +37,20 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  #
 
 ## Tools
 
+### Converting bags to and from raw
+
+ROS1 examples:
+```
+rosrun metavision_ros_tools bag_to_raw -t /event_camera/events -b foo.bag -o foo.raw -c silkyev
+rosrun metavision_ros_tools raw_to_bag -t /event_camera/events -i foo.raw -b foo.bag -f frame_id -w width -h height -e evt3
+```
+
+ROS2 examples:
+```
+ros2 run metavision_ros_tools bag_to_raw -t /event_camera/events -b foo.bag -o foo.raw -c silkyev
+ros2 run metavision_ros_tools raw_to_bag -t /event_camera/events -i foo.raw -b foo.bag -f frame_id -w width -h height -e evt3
+```
+
 ### Displaying rate and latency statistics
 
 How to use (ROS1):
