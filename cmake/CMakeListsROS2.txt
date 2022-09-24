@@ -36,14 +36,14 @@ endforeach()
 ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
 
 #
-# ---- perf tool
-#
-ament_auto_add_executable(perf  src/perf_ros2.cpp)
-
-#
 # ---- echo tool
 #
 ament_auto_add_executable(echo  src/echo_ros2.cpp)
+
+#
+# ---- perf tool
+#
+ament_auto_add_executable(perf  src/perf_ros2.cpp)
 
 #
 # ---- conversion tools
