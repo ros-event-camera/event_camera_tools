@@ -15,12 +15,15 @@
 
 #include "evt_3_utils.h"
 
+#include <assert.h>
 #include <event_array_msgs/decode.h>
 #include <unistd.h>
 
 #include <chrono>
 #include <fstream>
 #include <iostream>
+
+#undef NDEBUG
 
 namespace event_array_tools
 {
@@ -84,104 +87,104 @@ std::string toString(const SubType s)
   return ("UKNOWN");
 }
 
-size_t write(
-  std::fstream & out, const uint8_t * p, const size_t num_bytes, const uint64_t time_base,
-  const std::string & encoding, uint32_t * last_evt_stamp)
+class Decoder
 {
-  if (encoding != "mono") {
-    std::cerr << "unknown event encoding: " << encoding << std::endl;
-    throw std::runtime_error("unknown encoding!");
-  }
+public:
+  typedef uint64_t timestamp_t;
+  static constexpr timestamp_t MAX_BASE = (timestamp_t(1) << 12) - 1;
+  static constexpr timestamp_t TIME_LOOP = 1 << 24;
+  static constexpr timestamp_t LOOP_THRESH = 10;
 
-  uint32_t last_etu_us(0);
-  for (size_t i = 0; i < num_bytes; i += bytes_per_event, p += bytes_per_event) {
-    uint16_t ex;
-    uint16_t ey;
-    uint64_t etu;
-    bool pol = decode_t_x_y_p(p, time_base, &etu, &ex, &ey);
-    const uint64_t sensor_us = etu / 1000;  // total sensor time in usec
-    const uint32_t etu_us = sensor_us & 0x0000000000FFFFFF;
-    if (*last_evt_stamp == 0 || (*last_evt_stamp != (etu_us & 0xFFFFF000))) {
-      TimeHigh e3th(etu_us);
-      *last_evt_stamp = e3th.write(out);
-    }
-    // write last digits of time event if first event in ROS message,
-    // or if the event time stamp has changed,
-    if (i == 0 || last_etu_us != etu_us) {
-      TimeLow e3tl(etu_us);
-      e3tl.write(out);
-      last_etu_us = etu_us;
-    }
-    AddrY e3y(ey, 0);
-    e3y.write(out);
-    AddrX e3x(ex, static_cast<uint8_t>(pol));
-    e3x.write(out);
-  }
-  return (num_bytes / bytes_per_event);
-}
-
-static void skip_header(std::fstream & in)
-{
-  int c;
-  while ((c = in.peek()) == '%') {
-    std::string line;
-    std::getline(in, line);
-  }
-}
-
-size_t read(const std::string & inFile, MessageUpdater * updater)
-{
-  std::fstream in;
-  in.open(inFile, std::ios::in | std::ios::binary);
-  skip_header(in);
-  const size_t BUF_SIZE(100);
-  Event buffer[BUF_SIZE];
-
-  size_t numEvents(0);
-  uint16_t ey = 0;
-  uint64_t ts(0);  // sensor time stamp accumulated from LOW and HIGH messages
-  uint64_t t0_sensor(0);
-
-  while (in.read(reinterpret_cast<char *>(buffer), BUF_SIZE * sizeof(Event))) {
-    size_t numRead = in.gcount() / sizeof(Event);
+  void processBuffer(const uint8_t * buf, size_t bufSize, EventProcessor * processor)
+  {
+    std::cout << "process buffer... " << std::endl;
+    const size_t numRead = bufSize / sizeof(Event);
+    const Event * buffer = reinterpret_cast<const Event *>(buf);
     for (size_t i = 0; i < numRead; i++) {
       switch (buffer[i].code) {
         case Code::ADDR_X: {
           const AddrX * e = reinterpret_cast<const AddrX *>(&buffer[i]);
-          if (t0_sensor == 0) {  // this is the first full event ever received
-            t0_sensor = ts;
-          }
-          // ROS time in nanoseconds
-          const uint64_t ts_ros = updater->getROSTime() + (ts - t0_sensor) * 1000LL;
-          updater->addEvent(ts_ros, e->x, ey, e->polarity);
-          numEvents++;
+          processor->eventCD(time_, e->x, ey_, e->polarity);
+          assert(time_ > lastTime_);
+          lastTime_ = time_;
+          numEvents_++;
         } break;
         case Code::ADDR_Y: {
           const AddrY * e = reinterpret_cast<const AddrY *>(&buffer[i]);
-          ey = e->y;  // save for later
+          ey_ = e->y;  // save for later
         } break;
         case Code::TIME_LOW: {
           const TimeLow * e = reinterpret_cast<const TimeLow *>(&buffer[i]);
-          ts = (ts & 0xFFFFFFFFFFFFF000) | (e->t & 0xFFF);
+          time_ = timeBase_ | e->t;
         } break;
         case Code::TIME_HIGH: {
           const TimeHigh * e = reinterpret_cast<const TimeHigh *>(&buffer[i]);
-          const uint64_t prev_ts = ts;
-          ts = (e->t << 12);
-          if (ts < (prev_ts & 0xFFFFFFFFFFFFF000)) {
-            // must have experienced wrap-around
-            t0_sensor = t0_sensor - (prev_ts - ts);
+          // find 12 lower bits of current time base
+          const timestamp_t currBase = (timeBase_ >> 12) & ((1 << 12) - 1);
+
+          // some voodoo taken from the metavision cvs converter:
+          // only roll over if the new timebase is sufficiently bigger
+          // than the old one. Supposedly helps against transmission errors.
+          if ((currBase > e->t) && (currBase - e->t) >= (MAX_BASE - LOOP_THRESH)) {
+            timeBaseRolloverBits_ += TIME_LOOP;
+            std::cout << "rolling over!" << std::endl;
           }
+          std::cout << "got TIME_HIGH: " << e->t << std::endl;
+          // shift time base to make space for low time
+          timeBase_ = (e->t << 12) | timeBaseRolloverBits_;
+          time_ = timeBase_;  // will clear out current low time
         } break;
+        case Code::VECT_BASE_X: {
+          const VectBaseX * b = reinterpret_cast<const VectBaseX *>(&buffer[i]);
+          currentPolarity_ = b->pol;
+          currentBaseX_ = b->x;
+          break;
+        }
+        case Code::VECT_8: {
+          const Vect8 * b = reinterpret_cast<const Vect8 *>(&buffer[i]);
+          for (int i = 0; i < 8; i++) {
+            if (b->valid & (1 << i)) {
+              processor->eventCD(time_, currentBaseX_ + i, ey_, currentPolarity_);
+              numEvents_++;
+            }
+          }
+          assert(time_ > lastTime_);
+          lastTime_ = time_;
+
+          currentBaseX_ += 8;
+          break;
+        }
+        case Code::VECT_12: {
+          const Vect12 * b = reinterpret_cast<const Vect12 *>(&buffer[i]);
+          for (int i = 0; i < 12; i++) {
+            if (b->valid & (1 << i)) {
+              processor->eventCD(time_, currentBaseX_ + i, ey_, currentPolarity_);
+              numEvents_++;
+            }
+          }
+          assert(time_ > lastTime_);
+          lastTime_ = time_;
+          currentBaseX_ += 12;
+          break;
+        }
+        case Code::EXT_TRIGGER: {
+          const ExtTrigger * e = reinterpret_cast<const ExtTrigger *>(&buffer[i]);
+          processor->eventExtTrigger(time_, e->edge, e->id);
+          assert(time_ > lastTime_);
+          lastTime_ = time_;
+          break;
+        }
         case Code::OTHERS: {
+#if 0          
           const Others * e = reinterpret_cast<const Others *>(&buffer[i]);
           const SubType subtype = static_cast<SubType>(e->subtype);
           if (subtype != SubType::MASTER_END_OF_FRAME) {
             std::cout << "ignoring OTHERS code: " << toString(subtype) << std::endl;
           }
+#endif
         } break;
-          // ------- the CONTINUED codes are used in conjunction with
-          // the OTHERS code, so ignore as well
+        // ------- the CONTINUED codes are used in conjunction with
+        // the OTHERS code, so ignore as well
         case Code::CONTINUED_4:
         case Code::CONTINUED_12: {
         } break;
@@ -193,10 +196,35 @@ size_t read(const std::string & inFile, MessageUpdater * updater)
           break;
       }
     }
-    updater->bufferRead(reinterpret_cast<char *>(buffer), in.gcount());
   }
-  updater->finished();
-  return (numEvents);
+  size_t getNumEvents() const { return (numEvents_); }
+
+private:
+  // --------------------- variables
+  size_t numEvents_{0};
+  uint16_t ey_{0};                       // current y coordinate
+  timestamp_t time_{0};                  // complete accumulated sensor timestamp
+  timestamp_t timeBase_{0};              // time stamp base (time_high), shifted by 12 bits left
+  timestamp_t timeBaseRolloverBits_{0};  // bits from rollover, shifted by 24 bits left
+  timestamp_t lastTime_{0};
+  uint8_t currentPolarity_{0};           // polarity for vector event
+  uint16_t currentBaseX_{0};             // X coordinate basis for vector event
+  timestamp_t lastStamp_{0};
+};
+
+size_t read(const std::string & inFile, EventProcessor * processor)
+{
+  std::fstream in;
+  in.open(inFile, std::ios::in | std::ios::binary);
+  skip_header(in);
+  char buffer[1000 * sizeof(Event)];
+  Decoder decoder;
+  while (in.read(buffer, sizeof(buffer))) {
+    decoder.processBuffer(reinterpret_cast<uint8_t *>(buffer), in.gcount(), processor);
+    processor->rawData(reinterpret_cast<char *>(buffer), in.gcount());
+  }
+  processor->finished();
+  return (decoder.getNumEvents());
 }
 
 }  // namespace evt_3_utils

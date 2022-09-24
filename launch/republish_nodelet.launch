@@ -1,0 +1,13 @@
+<launch>
+  <arg name="bias_file" default=""/>
+  <node pkg="nodelet" type="nodelet"
+    name="republish_nodelet" args="standalone event_array_tools/RepublishNodelet"
+    clear_params="true" output="screen">
+    <param name="output_message_type" value="event_array"/>
+    <param name="output_message_encoding" value="mono"/>
+    <remap from="~/input_events" to="/event_camera/events"/>
+    <remap from="~/output_events"
+	   to="/event_camera/republished_events"/>
+    <remap from="~/output_trigger" to="/event_camera/republished_trigger"/>
+  </node>
+</launch>

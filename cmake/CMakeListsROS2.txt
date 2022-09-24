@@ -21,8 +21,11 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
 
 set(ROS2_DEPENDENCIES
-  "event_array_msgs"
   "rclcpp"
+  "dvs_msgs"
+  "prophesee_event_msgs"
+  "event_array_msgs"
+  "event_array_codecs"
   "rosbag2_cpp"
 )
 
@@ -33,24 +36,22 @@ endforeach()
 ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
 
 #
-# --------- encoding/decoding library
-#
-ament_auto_add_library(evt_library src/evt_3_utils.cpp)
-
-#
 # ---- perf tool
 #
 ament_auto_add_executable(perf  src/perf_ros2.cpp)
+
+#
+# ---- echo tool
+#
+ament_auto_add_executable(echo  src/echo_ros2.cpp)
 
 #
 # ---- conversion tools
 #
 
 ament_auto_add_executable(bag_to_raw src/bag_to_raw_ros2.cpp)
-target_link_libraries(bag_to_raw evt_library)
 
-ament_auto_add_executable(raw_to_bag src/raw_to_bag_ros2.cpp src/evt_3_utils.cpp)
-target_link_libraries(raw_to_bag evt_library)
+#ament_auto_add_executable(raw_to_bag src/raw_to_bag_ros2.cpp)
 
 
 # the node must go into the paroject specific lib directory or else
@@ -58,8 +59,9 @@ target_link_libraries(raw_to_bag evt_library)
 
 install(TARGETS
   perf
+  echo
   bag_to_raw
-  raw_to_bag
+#  raw_to_bag
   DESTINATION lib/${PROJECT_NAME}/)
 
 if(BUILD_TESTING)

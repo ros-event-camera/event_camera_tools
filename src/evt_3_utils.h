@@ -23,14 +23,14 @@ namespace event_array_tools
 {
 namespace evt_3_utils
 {
-class MessageUpdater
+class EventProcessor
 {
 public:
-  ~MessageUpdater() {}
-  virtual void addEvent(uint64_t ts_ros, uint16_t ex, uint16_t ey, uint8_t polarity) = 0;
-  virtual uint64_t getROSTime() = 0;
+  ~EventProcessor() {}
+  virtual void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) = 0;
+  virtual void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id) = 0;
   virtual void finished() = 0;
-  virtual void bufferRead(const char * data, size_t len) = 0;
+  virtual void rawData(const char * data, size_t len) = 0;
 };
 
 enum Code {
@@ -76,8 +76,8 @@ enum SubType {
 
 struct __attribute__((packed)) Event
 {
-  unsigned int rest : 12;
-  unsigned int code : 4;
+  uint16_t rest : 12;
+  uint16_t code : 4;
 };
 
 struct __attribute__((packed)) AddrY
@@ -87,9 +87,9 @@ struct __attribute__((packed)) AddrY
   {
     out.write(reinterpret_cast<const char *>(this), sizeof(*this));
   }
-  unsigned int y : 11;
-  unsigned int system_type : 1;
-  unsigned int code : 4;
+  uint16_t y : 11;
+  uint16_t system_type : 1;
+  uint16_t code : 4;
 };
 
 struct __attribute__((packed)) AddrX
@@ -99,9 +99,9 @@ struct __attribute__((packed)) AddrX
   {
     out.write(reinterpret_cast<const char *>(this), sizeof(*this));
   }
-  unsigned int x : 11;
-  unsigned int polarity : 1;
-  unsigned int code : 4;
+  uint16_t x : 11;
+  uint16_t polarity : 1;
+  uint16_t code : 4;
 };
 
 struct __attribute__((packed)) TimeHigh
@@ -112,8 +112,8 @@ struct __attribute__((packed)) TimeHigh
     out.write(reinterpret_cast<const char *>(this), sizeof(*this));
     return (static_cast<uint32_t>(t) << 12);
   }
-  unsigned int t : 12;
-  unsigned int code : 4;
+  uint16_t t : 12;
+  uint16_t code : 4;
 };
 
 struct __attribute__((packed)) TimeLow
@@ -123,8 +123,8 @@ struct __attribute__((packed)) TimeLow
   {
     out.write(reinterpret_cast<const char *>(this), sizeof(*this));
   }
-  unsigned int t : 12;
-  unsigned int code : 4;
+  uint16_t t : 12;
+  uint16_t code : 4;
 };
 
 struct __attribute__((packed)) Others
@@ -134,8 +134,56 @@ struct __attribute__((packed)) Others
   {
     out.write(reinterpret_cast<const char *>(this), sizeof(*this));
   }
-  unsigned int subtype : 12;
-  unsigned int code : 4;
+  uint16_t subtype : 12;
+  uint16_t code : 4;
+};
+
+struct __attribute__((packed)) VectBaseX
+{
+  VectBaseX(uint16_t xa, uint16_t pa) : x(xa), pol(pa), code(Code::VECT_BASE_X) {}
+  void write(std::fstream & out) const
+  {
+    out.write(reinterpret_cast<const char *>(this), sizeof(*this));
+  }
+  uint16_t x : 11;
+  uint16_t pol : 1;
+  uint16_t code : 4;
+};
+
+struct __attribute__((packed)) Vect8
+{
+  Vect8(uint16_t v) : valid(v), code(Code::VECT_8) {}
+  void write(std::fstream & out) const
+  {
+    out.write(reinterpret_cast<const char *>(this), sizeof(*this));
+  }
+  uint16_t valid : 8;
+  uint16_t unused : 4;
+  uint16_t code : 4;
+};
+
+struct __attribute__((packed)) Vect12
+{
+  Vect12(uint16_t v) : valid(v), code(Code::VECT_12) {}
+  void write(std::fstream & out) const
+  {
+    out.write(reinterpret_cast<const char *>(this), sizeof(*this));
+  }
+  uint16_t valid : 12;
+  uint16_t code : 4;
+};
+
+struct __attribute__((packed)) ExtTrigger
+{
+  ExtTrigger(uint8_t e, uint8_t id_a) : edge(e), id(id_a), code(Code::EXT_TRIGGER) {}
+  void write(std::fstream & out) const
+  {
+    out.write(reinterpret_cast<const char *>(this), sizeof(*this));
+  }
+  uint16_t edge : 1;
+  uint16_t unused : 7;
+  uint16_t id : 4;
+  uint16_t code : 4;
 };
 
 std::string toString(const SubType s);
@@ -144,7 +192,7 @@ size_t write(
   std::fstream & out, const uint8_t * p, const size_t num_bytes, const uint64_t time_base,
   const std::string & encoding, uint32_t * last_evt_stamp);
 
-size_t read(const std::string & inFile, MessageUpdater * updater);
+size_t read(const std::string & inFile, EventProcessor * updater);
 }  // namespace evt_3_utils
 }  // namespace event_array_tools
 

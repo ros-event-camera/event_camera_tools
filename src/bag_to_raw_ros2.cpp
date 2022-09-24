@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_msgs/decode.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -25,35 +24,61 @@
 #include <rosbag2_cpp/reader.hpp>
 #include <rosbag2_cpp/readers/sequential_reader.hpp>
 
-#include "evt_3_utils.h"
-
 void usage()
 {
   std::cout << "usage:" << std::endl;
-  std::cout << "bag_to_raw -b name_of_bag_file -o name_of_raw_file -t topic " << std::endl;
+  std::cout << "bag_to_raw -b name_of_bag_file -o name_of_raw_file -t topic -c camera" << std::endl;
 }
 
 namespace event_array_tools
 {
 using event_array_msgs::msg::EventArray;
 
-// you may have to modify the header string to match your system
-const char * header =
-  "% date 2022-07-20 11:20:09\n"
-  "% evt 3.0\n"
-  "% firmware_version 4.1.1\n"
-  "% integrator_name CenturyArks\n"
-  "% plugin_name evc3a_plugin_gen31\n"
-  "% serial_number 00000198\n"
-  "% subsystem_ID 0\n"
-  "% system_ID 40\n";
+std::map<std::string, std::string> headers = {
+  {"silkyev",
+   "% date 2022-07-20 11:20:09\n"
+   "% evt 3.0\n"
+   "% firmware_version 4.1.1\n"
+   "% integrator_name CenturyArks\n"
+   "% plugin_name evc3a_plugin_gen31\n"
+   "% serial_number 00000198\n"
+   "% subsystem_ID 0\n"
+   "% system_ID 40\n"},
+
+  {"evk4",
+   "% date 2022-09-14 17:11:11\n"
+   "% evt 3.0\n"
+   "% firmware_version 0.0.0\n"
+   "% format EVT3\n"
+   "% geometry 1280x720\n"
+   "% integrator_name Prophesee\n"
+   "% plugin_name hal_plugin_imx636_evk4\n"
+   "% sensor_generation 4.2\n"
+   "% serial_number 00050108\n"
+   "% system_ID 49\n"}};
+
+size_t write(
+  std::fstream & out, const uint8_t * p, const size_t num_bytes, const uint64_t time_base,
+  const std::string & encoding, uint32_t * last_evt_stamp)
+{
+  (void)time_base;
+  (void)last_evt_stamp;
+  if (encoding == "evt3") {
+    out.write(reinterpret_cast<const char *>(p), num_bytes);
+  } else {
+    std::cout << "only evt3 is supported!" << std::endl;
+    throw std::runtime_error("only evt3 supported!");
+  }
+  return (num_bytes);
+}
 
 static size_t process_bag(
-  const std::string & inFile, const std::string & outFile, const std::string & topic)
+  const std::string & inFile, const std::string & outFile, const std::string & topic,
+  const std::string & header)
 {
   std::fstream out;
   out.open(outFile, std::ios::out | std::ios::binary);
-  out.write(header, strlen(header));
+  out.write(header.c_str(), header.size());
   size_t numEvents(0);
   size_t numMessages(0);
   {
@@ -67,8 +92,8 @@ static size_t process_bag(
         rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
         EventArray m;
         serialization.deserialize_message(&serializedMsg, &m);
-        numEvents += evt_3_utils::write(
-          out, &m.events[0], m.events.size(), m.time_base, m.encoding, &last_evt_stamp);
+        numEvents +=
+          write(out, &m.events[0], m.events.size(), m.time_base, m.encoding, &last_evt_stamp);
         numMessages++;
       }
     }
@@ -83,8 +108,9 @@ int main(int argc, char ** argv)
 
   std::string inFile;
   std::string outFile;
+  std::string camera("evk4");
   std::string topic("/event_camera/events");
-  while ((opt = getopt(argc, argv, "b:o:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:o:t:c:h")) != -1) {
     switch (opt) {
       case 'b':
         inFile = optarg;
@@ -95,6 +121,14 @@ int main(int argc, char ** argv)
       case 't':
         topic = optarg;
         break;
+      case 'c':
+        camera = optarg;
+        break;
+      case 'h':
+        usage();
+        return (-1);
+        break;
+
       default:
         std::cout << "unknown option: " << opt << std::endl;
         usage();
@@ -107,8 +141,17 @@ int main(int argc, char ** argv)
     usage();
     return (-1);
   }
+
+  const auto h = event_array_tools::headers.find(camera);
+  if (h == event_array_tools::headers.end()) {
+    std::cout << "Unknown camera! Supported are: " << std::endl;
+    for (const auto & c : event_array_tools::headers) {
+      std::cout << c.first << std::endl;
+    }
+  }
+
   auto start = std::chrono::high_resolution_clock::now();
-  const size_t numEvents = event_array_tools::process_bag(inFile, outFile, topic);
+  const size_t numEvents = event_array_tools::process_bag(inFile, outFile, topic, h->second);
   auto final = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
 

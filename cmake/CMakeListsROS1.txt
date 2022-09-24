@@ -17,8 +17,12 @@ add_compile_options(-Wall -Wextra -pedantic -Werror)
 add_definitions(-DUSING_ROS_1)
 
 find_package(catkin REQUIRED COMPONENTS
-  event_array_msgs
   roscpp
+  nodelet
+  dvs_msgs
+  prophesee_event_msgs
+  event_array_msgs
+  event_array_codecs
   rosbag
   )
   
@@ -31,10 +35,10 @@ include_directories(
 )
 
 #
-# --------- encoding/decoding library
+# --------- echo tool
 #
-add_library(evt_library src/evt_3_utils.cpp)
-target_link_libraries(evt_library ${catkin_LIBRARIES})
+add_executable(echo src/echo_ros1.cpp)
+target_link_libraries(echo ${catkin_LIBRARIES})
 
 #
 # --------- performance tool
@@ -42,20 +46,40 @@ target_link_libraries(evt_library ${catkin_LIBRARIES})
 add_executable(perf src/perf_ros1.cpp)
 target_link_libraries(perf ${catkin_LIBRARIES})
 
+# --------- republish nodelet
+add_library(republish_nodelet src/republish_nodelet.cpp)
+target_link_libraries(republish_nodelet ${catkin_LIBRARIES})
+
+# --------- republish node
+add_executable(republish_node src/republish_node_ros1.cpp)
+target_link_libraries(republish_node ${catkin_LIBRARIES})
+
 # --------- conversion tools
 
-add_executable(bag_to_raw src/bag_to_raw_ros1.cpp)
-target_link_libraries(bag_to_raw evt_library ${catkin_LIBRARIES})
+#add_executable(raw_to_bag src/raw_to_bag_ros1.cpp)
+#target_link_libraries(raw_to_bag ${catkin_LIBRARIES})
 
-add_executable(raw_to_bag src/raw_to_bag_ros1.cpp src/evt_3_utils.cpp)
-target_link_libraries(raw_to_bag ${catkin_LIBRARIES})
+add_executable(bag_to_raw src/bag_to_raw_ros1.cpp)
+target_link_libraries(bag_to_raw ${catkin_LIBRARIES})
 
 #############
 ## Install ##
 #############
 
-install(TARGETS perf bag_to_raw raw_to_bag
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS republish_nodelet echo perf bag_to_raw republish_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+  )
+
+install(FILES nodelet_plugins.xml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  FILES_MATCHING PATTERN "*.launch"
+  )
 
 #############
 ## Testing ##

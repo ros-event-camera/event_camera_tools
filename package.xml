@@ -19,11 +19,15 @@
 
   <!-- ROS1 dependencies -->
   <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
+  <depend condition="$ROS_VERSION == 1">nodelet</depend>
   <depend condition="$ROS_VERSION == 1">roscpp</depend>
   <depend condition="$ROS_VERSION == 1">rosbag</depend>
 
   <!-- common ROS1/ROS2 dependencies -->
-  <depend>event_array_msgs</depend>  
+  <depend>event_array_msgs</depend>
+  <depend>dvs_msgs</depend>
+  <depend>prophesee_event_msgs</depend>
+  <depend>event_array_codecs</depend>  
   
   <export>
     <nodelet plugin="${prefix}/nodelet_plugins.xml"/>

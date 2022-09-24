@@ -24,8 +24,6 @@
 #include <fstream>
 #include <map>
 
-#include "evt_3_utils.h"
-
 void usage()
 {
   std::cout << "usage:" << std::endl;
@@ -59,6 +57,21 @@ std::map<std::string, std::string> headers = {
    "% serial_number 00050108\n"
    "% system_ID 49\n"}};
 
+size_t write(
+  std::fstream & out, const uint8_t * p, const size_t num_bytes, const uint64_t time_base,
+  const std::string & encoding, uint32_t * last_evt_stamp)
+{
+  (void)time_base;
+  (void)last_evt_stamp;
+  if (encoding == "evt3") {
+    out.write(reinterpret_cast<const char *>(p), num_bytes);
+  } else {
+    std::cout << "only evt3 is supported!" << std::endl;
+    throw std::runtime_error("only evt3 supported!");
+  }
+  return (num_bytes);
+}
+
 static size_t process_bag(
   const std::string & inFile, const std::string & outFile, const std::string & topic,
   const std::string & header)
@@ -80,12 +93,8 @@ static size_t process_bag(
       if (m.getTopic() == topic) {
         EventArray::ConstPtr ea = m.instantiate<EventArray>();
         if (ea) {
-          if (ea->encoding == "evt3") {
-            out.write(reinterpret_cast<const char *>(&ea->events[0]), ea->events.size());
-          } else if (ea->encoding == "mono") {
-            (void)evt_3_utils::write(
-              out, &ea->events[0], ea->events.size(), ea->time_base, ea->encoding, &last_evt_stamp);
-          }
+          (void)write(
+            out, &ea->events[0], ea->events.size(), ea->time_base, ea->encoding, &last_evt_stamp);
           numMessages++;
         }
       }
@@ -94,7 +103,7 @@ static size_t process_bag(
   }
   std::cout << "read " << numMessages << " messages" << std::endl;
   return (numMessages);
-}  // namespace event_array_tools
+}
 }  // namespace event_array_tools
 
 int main(int argc, char ** argv)
