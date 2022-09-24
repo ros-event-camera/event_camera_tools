@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <event_array_codecs/decoder.h>
+#include <event_array_codecs/event_processor.h>
 #include <event_array_msgs/decode.h>
 #include <unistd.h>
 
@@ -20,6 +22,7 @@
 #include <event_array_msgs/msg/event_array.hpp>
 #include <fstream>
 #include <rclcpp/rclcpp.hpp>
+#include <unordered_map>
 
 void usage()
 {
@@ -27,8 +30,10 @@ void usage()
   std::cout << "perf <ros_topic>" << std::endl;
 }
 
+using event_array_codecs::Decoder;
 using event_array_msgs::msg::EventArray;
-class Perf : public rclcpp::Node
+
+class Perf : public rclcpp::Node, public event_array_codecs::EventProcessor
 {
 public:
   explicit Perf(const std::string & topic, const rclcpp::NodeOptions & options)
@@ -44,70 +49,97 @@ public:
       [=]() { this->timerExpired(); });
     lastTime_ = this->get_clock()->now();
   }
+  // ---------- from the EventProcessor interface:
+  void eventCD(uint64_t sensor_time, uint16_t, uint16_t, uint8_t p) override
+  {
+    lastSensorTime_ = sensor_time * 1000;
+    cdEvents_[std::min(uint8_t(1), p)]++;
+  }
+  void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t /*id*/) override
+  {
+    lastSensorTime_ = sensor_time * 1000;
+    trEvents_[std::min(uint8_t(1), edge)]++;
+  }
+  void finished() override {}
+  void rawData(const char *, size_t) override {}
+  // -------- end of inherited
   void eventMsg(EventArray::ConstSharedPtr msg)
   {
-    size_t idx = 0;
-    size_t bytes_per_event = 0;
-    if (msg->encoding == "mono") {
-      idx = 0;
-      bytes_per_event = event_array_msgs::mono::bytes_per_event;
-    } else if (msg->encoding == "trigger") {
-      idx = 1;
-      bytes_per_event = event_array_msgs::trigger::bytes_per_event;
-    } else {
-      RCLCPP_ERROR_STREAM(get_logger(), "unsupported encoding: " << msg->encoding);
-      throw std::runtime_error("unsupported encoding");
+    auto decIt = decoders_.find(msg->encoding);
+    if (decIt == decoders_.end()) {
+      auto dec = Decoder::newInstance(msg->encoding);
+      if (dec) {
+        decIt = decoders_.insert({msg->encoding, dec}).first;
+      } else {
+        printf("unsupported encoding: %s\n", msg->encoding.c_str());
+        return;
+      }
     }
-    const rclcpp::Time t_stamp = rclcpp::Time(msg->header.stamp);
-    if (lastSeq_[idx] == 0) {
-      lastSeq_[idx] = msg->seq - 1;
-      lastStamp_ = t_stamp;
+    auto & decoder = *(decIt->second);
+    decoder.setTimeBase(msg->time_base);
+    decoder.decode(&msg->events[0], msg->events.size(), this);
+    numMsgs_++;
+    if (lastSeq_ == 0) {
+      lastSeq_ = msg->seq - 1;
     }
-    numMsgs_[idx]++;
-    const int num_dropped = msg->seq - 1 - lastSeq_[idx];
-    dropped_[idx] += num_dropped;
-    lastSeq_[idx] = msg->seq;
-    if (t_stamp < lastStamp_) {
-      numReverse_[idx]++;
-    }
-    lastStamp_ = t_stamp;
-    numEvents_[idx] += msg->events.size() / bytes_per_event;
+    numSeqDropped_ += (msg->seq - 1 - lastSeq_);
+    lastSeq_ = msg->seq;
     const auto t = this->get_clock()->now();
-    delay_[idx] += (t - t_stamp).nanoseconds();
+    const auto t_stamp = rclcpp::Time(msg->header.stamp);
+    delay_ += (t - t_stamp).nanoseconds();
+    if (previousSensorTime_ != 0) {
+      const int64_t dd = (int64_t(lastSensorTime_) - int64_t(previousSensorTime_)) -
+                         (int64_t(t_stamp.nanoseconds()) - int64_t(previousStamp_));
+      drift_ += dd;
+    }
+    previousSensorTime_ = lastSensorTime_;
+    previousStamp_ = t_stamp.nanoseconds();
   }
 
   void timerExpired()
   {
     const auto t = this->get_clock()->now();
     const double dt = (t - lastTime_).nanoseconds() * 1e-9;  // in milliseconds
-    for (int i = 0; i < 2; i++) {
-      if (numEvents_[i] != 0 && numMsgs_[i] != 0) {
-        const std::string label = i == 0 ? "events" : "triggr";
-        printf(
-          "%s: %8.4f M/s msgs: %8.2f/s drop: %3zu delay: %5.2fms", label.c_str(),
-          numEvents_[i] / dt * 1e-6, numMsgs_[i] / dt, dropped_[i],
-          delay_[i] / (1e6 * numMsgs_[i]));
-        if (numReverse_[i] != 0) {
-          printf(" ROS STAMP REVERSED: %3zu\n", numReverse_[i]);
-        } else {
-          printf("\n");
-        }
+    if (numMsgs_ != 0) {
+      printf(
+        "msgs: %8.2f/s drp: %2zu del: %5.2fms drft: %6.4fs", numMsgs_ / dt, numSeqDropped_,
+        delay_ / (1e6 * numMsgs_), drift_ * 1e-9);
+      const size_t cdTot = cdEvents_[0] + cdEvents_[1];
+      if (cdTot > 0) {
+        printf(" ev: %8.4f M/s %%ON: %3zu", cdTot / dt * 1e-6, (cdEvents_[1] * 100) / cdTot);
       }
-      numEvents_[i] = numMsgs_[i] = delay_[i] = dropped_[i] = numReverse_[i] = 0;
+      const size_t trTot = trEvents_[0] + trEvents_[1];
+      if (trTot > 0) {
+        printf(" tr: %8.2f 1/s %%UP: %3zu\n", trTot / dt, (trEvents_[1] * 100) / trTot);
+      } else {
+        printf("\n");
+      }
+    } else {
+      printf("no messages received ...\n");
     }
+    cdEvents_[0] = cdEvents_[1] = 0;
+    trEvents_[0] = trEvents_[1] = 0;
+    numMsgs_ = 0;
+    numSeqDropped_ = 0;
+    delay_ = 0;
     lastTime_ = t;
   }
   // ---------- variables
   rclcpp::Subscription<EventArray>::SharedPtr sub_;
+  std::unordered_map<std::string, std::shared_ptr<Decoder>> decoders_;
   rclcpp::TimerBase::SharedPtr timer_;
-  size_t numMsgs_[2]{0, 0};
-  size_t numEvents_[2]{0, 0};
-  int64_t delay_[2]{0, 0};
-  size_t dropped_[2]{0, 0};
-  size_t numReverse_[2]{0, 0};
-  uint64_t lastSeq_[2]{0, 0};
+  size_t numMsgs_{0};
+  size_t cdEvents_[2]{0, 0};  // contrast change detected
+  size_t trEvents_[2]{0, 0};  // trigger
+
   rclcpp::Time lastTime_;
-  rclcpp::Time lastStamp_;
+  uint64_t lastSeq_{0};
+  uint64_t numSeqDropped_{0};
+  uint64_t lastSensorTime_{0};
+  uint64_t previousSensorTime_{0};
+  uint64_t previousStamp_{0};
+  int64_t delay_{0};
+  int64_t drift_{0};
 };
 
 int main(int argc, char ** argv)

@@ -8,6 +8,6 @@
     <remap from="~/input_events" to="/event_camera/events"/>
     <remap from="~/output_events"
 	   to="/event_camera/republished_events"/>
-    <remap from="~/output_trigger" to="/event_camera/republished_trigger"/>
+    <remap from="~/output_triggers" to="/event_camera/republished_triggers"/>
   </node>
 </launch>

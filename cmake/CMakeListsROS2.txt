@@ -22,6 +22,7 @@ find_package(ament_cmake_auto REQUIRED)
 
 set(ROS2_DEPENDENCIES
   "rclcpp"
+  "rclcpp_components"
   "dvs_msgs"
   "prophesee_event_msgs"
   "event_array_msgs"
@@ -54,6 +55,19 @@ ament_auto_add_executable(bag_to_raw src/bag_to_raw_ros2.cpp)
 #ament_auto_add_executable(raw_to_bag src/raw_to_bag_ros2.cpp)
 
 
+#
+# ---- republish node and composable
+#
+
+ament_auto_add_executable(republish_node  src/republish_node_ros2.cpp)
+
+ament_auto_add_library(republish SHARED src/republish_composable.cpp)
+target_include_directories(republish PRIVATE include)
+
+rclcpp_components_register_nodes(republish "event_array_tools::RepublishComposable")
+
+
+
 # the node must go into the paroject specific lib directory or else
 # the launch file will not find it
 
@@ -61,8 +75,23 @@ install(TARGETS
   perf
   echo
   bag_to_raw
+  republish_node
 #  raw_to_bag
   DESTINATION lib/${PROJECT_NAME}/)
+
+# the shared library goes into the global lib dir so it can
+# be used as a composable node by other projects
+
+install(TARGETS
+  republish
+  DESTINATION lib
+)
+
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+  FILES_MATCHING PATTERN "*.py"
+  )
 
 if(BUILD_TESTING)
   find_package(ament_cmake REQUIRED)

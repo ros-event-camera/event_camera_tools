@@ -39,7 +39,7 @@ template <typename MsgType>
 class MessageMaker : public event_array_codecs::EventProcessor
 {
 public:
-  MessageMaker(const std::string & codec)
+  explicit MessageMaker(const std::string & codec)
   {
     eventEncoder_ = Encoder::newInstance(codec);
     triggerEncoder_ = Encoder::newInstance(codec);
@@ -220,7 +220,8 @@ public:
     sub_ = nh_.subscribe(
       "input_events", nh_.param<int>("recv_queue_size", 1000), &Republish::eventMsg, this);
     eventPub_ = nh_.advertise<MsgType>("output_events", nh_.param<int>("send_queue_size", 1000));
-    triggerPub_ = nh_.advertise<MsgType>("output_trigger", nh_.param<int>("send_queue_size", 1000));
+    triggerPub_ =
+      nh_.advertise<MsgType>("output_triggers", nh_.param<int>("send_queue_size", 1000));
   }
   Republish(const Republish &) = delete;
   Republish & operator=(const Republish &) = delete;

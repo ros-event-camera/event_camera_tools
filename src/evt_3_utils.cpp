@@ -175,7 +175,7 @@ public:
           break;
         }
         case Code::OTHERS: {
-#if 0          
+#if 0
           const Others * e = reinterpret_cast<const Others *>(&buffer[i]);
           const SubType subtype = static_cast<SubType>(e->subtype);
           if (subtype != SubType::MASTER_END_OF_FRAME) {
@@ -206,7 +206,7 @@ private:
   timestamp_t time_{0};                  // complete accumulated sensor timestamp
   timestamp_t timeBase_{0};              // time stamp base (time_high), shifted by 12 bits left
   timestamp_t timeBaseRolloverBits_{0};  // bits from rollover, shifted by 24 bits left
-  timestamp_t lastTime_{0};
+  timestamp_t lastTime_{0};              // last decoded time
   uint8_t currentPolarity_{0};           // polarity for vector event
   uint16_t currentBaseX_{0};             // X coordinate basis for vector event
   timestamp_t lastStamp_{0};
