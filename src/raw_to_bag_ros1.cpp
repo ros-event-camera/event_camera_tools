@@ -14,8 +14,8 @@
 // limitations under the License.
 
 #include <event_array_msgs/EventArray.h>
-#include <event_array_msgs/decode.h>
-#include <event_array_msgs/encode.h>
+#include <event_array_msgs/decode.h>  // BAD: should no longer be used!
+#include <event_array_msgs/encode.h>  // BAD: should no longer be used!
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <unistd.h>

@@ -34,15 +34,15 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-#
+# --------- sync test
+add_executable(sync_test src/sync_test_ros1.cpp)
+target_link_libraries(sync_test ${catkin_LIBRARIES})
+
 # --------- echo tool
-#
 add_executable(echo src/echo_ros1.cpp)
 target_link_libraries(echo ${catkin_LIBRARIES})
 
-#
 # --------- performance tool
-#
 add_executable(perf src/perf_ros1.cpp)
 target_link_libraries(perf ${catkin_LIBRARIES})
 

@@ -14,9 +14,9 @@
 // limitations under the License.
 
 #include <assert.h>
-#include <event_array_msgs/decode.h>
-#include <event_array_msgs/decode_evt3.h>
-#include <event_array_msgs/encode.h>
+#include <event_array_msgs/decode.h>       // BAD: should no longer be used
+#include <event_array_msgs/decode_evt3.h>  // BAD: should no longer be used
+#include <event_array_msgs/encode.h>       // BAD: should no longer be used
 #include <unistd.h>
 
 #include <chrono>

@@ -15,7 +15,6 @@
 
 #include <event_array_codecs/decoder.h>
 #include <event_array_codecs/event_processor.h>
-#include <event_array_msgs/decode.h>
 #include <unistd.h>
 
 #include <chrono>

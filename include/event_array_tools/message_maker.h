@@ -16,15 +16,18 @@
 #ifndef EVENT_ARRAY_TOOLS__MESSAGE_MAKER_H_
 #define EVENT_ARRAY_TOOLS__MESSAGE_MAKER_H_
 
+#include <event_array_codecs/encoder.h>
 #include <event_array_codecs/event_processor.h>
 #include <event_array_tools/check_endian.h>
 #include <inttypes.h>
 
 #include <chrono>
-#include <event_array_msgs/msg/event_array.hpp>
-#ifdef USING_ROS1
+
+#ifdef USING_ROS_1
+#include <event_array_msgs/EventArray.h>
 #include <ros/ros.h>
 #else
+#include <event_array_msgs/msg/event_array.hpp>
 #include <rclcpp/rclcpp.hpp>
 #endif
 
@@ -32,17 +35,23 @@ namespace event_array_tools
 {
 using event_array_codecs::Decoder;
 using event_array_codecs::Encoder;
-#ifdef USING_ROS1
+#ifdef USING_ROS_1
 using event_array_msgs::EventArray;
 typedef ros::Time RosTimeType;
+#define GENERIC_ROS_DURATION(X) (ros::Duration().fromNSec(X))
+#define ROS_MSG_PTR Ptr
 #else
 using event_array_msgs::msg::EventArray;
 typedef rclcpp::Time RosTimeType;
+#define ROS_MSG_PTR UniquePtr
+#define GENERIC_ROS_DURATION(X) (rclcpp::Duration(std::chrono::nanoseconds(X)))
 #endif
 
 template <typename MsgType>
 class MessageMaker : public event_array_codecs::EventProcessor
 {
+  using Encoder = event_array_codecs::Encoder;
+
 public:
   explicit MessageMaker(const std::string & codec)
   {
@@ -58,8 +67,7 @@ public:
     }
     if (eventMsg_) {
       typename decltype(MsgType::events)::value_type e;
-      e.ts = messageRosStamp_ +
-             rclcpp::Duration(std::chrono::nanoseconds(sensor_time - baseSensorTime_));
+      e.ts = messageRosStamp_ + GENERIC_ROS_DURATION(sensor_time - baseSensorTime_);
       e.x = ex;
       e.y = ey;
       e.polarity = polarity;
@@ -75,8 +83,7 @@ public:
     }
     if (triggerMsg_) {
       typename decltype(MsgType::events)::value_type e;
-      e.ts = messageRosStamp_ +
-             rclcpp::Duration(std::chrono::nanoseconds(sensor_time - baseSensorTime_));
+      e.ts = messageRosStamp_ + GENERIC_ROS_DURATION(sensor_time - baseSensorTime_);
       e.x = id;
       e.y = 0;
       e.polarity = edge;
@@ -132,19 +139,19 @@ public:
     waitForSensorTime_ = true;  // updated ros time, must wait for first time stamp
   }
 
-  typename MsgType::UniquePtr resetEventMessage()
+  typename MsgType::ROS_MSG_PTR resetEventMessage()
   {
     maxEventSize_ = std::max(maxEventSize_, eventMsg_->events.size());
-#ifdef USING_ROS1
+#ifdef USING_ROS_1
     eventMsg_->header.seq = eventSeq_++;
 #endif
     return (std::move(eventMsg_));
   }
 
-  typename MsgType::UniquePtr resetTriggerMessage()
+  typename MsgType::ROS_MSG_PTR resetTriggerMessage()
   {
     maxTriggerSize_ = std::max(maxTriggerSize_, triggerMsg_->events.size());
-#ifdef USING_ROS1
+#ifdef USING_ROS_1
     triggerMsg_->header.seq = triggerSeq_++;
 #endif
     return (std::move(triggerMsg_));
@@ -156,8 +163,8 @@ private:
   uint64_t baseSensorTime_{0};
   bool isBaseSensorTimeValid_{false};
   bool waitForSensorTime_{true};
-  typename MsgType::UniquePtr eventMsg_;
-  typename MsgType::UniquePtr triggerMsg_;
+  typename MsgType::ROS_MSG_PTR eventMsg_;
+  typename MsgType::ROS_MSG_PTR triggerMsg_;
   std::shared_ptr<Encoder> eventEncoder_;
   std::shared_ptr<Encoder> triggerEncoder_;
   size_t maxEventSize_{0};
@@ -211,14 +218,14 @@ void MessageMaker<EventArray>::initializeMoreTrigger()
 }
 
 template <>
-EventArray::UniquePtr MessageMaker<EventArray>::resetEventMessage()
+EventArray::ROS_MSG_PTR MessageMaker<EventArray>::resetEventMessage()
 {
   if (eventMsg_->events.empty()) {
     return (0);
   }
   maxEventSize_ = std::max(maxEventSize_, eventMsg_->events.size());
   eventMsg_->time_base = baseSensorTime_;
-#ifdef USING_ROS1
+#ifdef USING_ROS_1
   eventMsg_->header.seq = eventSeq_;
 #endif
   eventMsg_->seq = eventSeq_;
@@ -230,14 +237,14 @@ EventArray::UniquePtr MessageMaker<EventArray>::resetEventMessage()
 }
 
 template <>
-EventArray::UniquePtr MessageMaker<EventArray>::resetTriggerMessage()
+EventArray::ROS_MSG_PTR MessageMaker<EventArray>::resetTriggerMessage()
 {
   if (triggerMsg_->events.empty()) {
     return (0);
   }
   maxTriggerSize_ = std::max(maxTriggerSize_, triggerMsg_->events.size());
   triggerMsg_->time_base = baseSensorTime_;
-#ifdef USING_ROS1
+#ifdef USING_ROS_1
   triggerMsg_->header.seq = triggerSeq_;
 #endif
   triggerMsg_->seq = triggerSeq_;

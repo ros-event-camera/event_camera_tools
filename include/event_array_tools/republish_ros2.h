@@ -17,7 +17,6 @@
 #define EVENT_ARRAY_TOOLS__REPUBLISH_ROS2_H_
 
 #include <event_array_codecs/decoder.h>
-#include <event_array_codecs/encoder.h>
 #include <event_array_codecs/event_processor.h>
 #include <event_array_tools/check_endian.h>
 #include <event_array_tools/message_maker.h>
@@ -31,7 +30,6 @@
 namespace event_array_tools
 {
 using event_array_codecs::Decoder;
-using event_array_codecs::Encoder;
 using event_array_msgs::msg::EventArray;
 
 template <typename MsgType>
