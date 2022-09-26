@@ -14,7 +14,6 @@
 // limitations under the License.
 
 #include <event_array_msgs/EventArray.h>
-#include <event_array_msgs/decode.h>
 #include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -113,7 +112,7 @@ int main(int argc, char ** argv)
   std::string inFile;
   std::string outFile;
   std::string topic("/event_camera/packets");
-  std::string camera("silkyev");
+  std::string camera;
   while ((opt = getopt(argc, argv, "b:o:t:c:h")) != -1) {
     switch (opt) {
       case 'b':
@@ -145,11 +144,12 @@ int main(int argc, char ** argv)
     return (-1);
   }
   const auto h = event_array_tools::headers.find(camera);
-  if (h == event_array_tools::headers.end()) {
-    std::cout << "Unknown camera! Supported are: " << std::endl;
+  if (camera.empty() || h == event_array_tools::headers.end()) {
+    std::cout << "missing or unknown camera, must specify one of these: " << std::endl;
     for (const auto & c : event_array_tools::headers) {
       std::cout << c.first << std::endl;
     }
+    return (-1);
   }
   auto start = std::chrono::high_resolution_clock::now();
   const size_t numMsgs = event_array_tools::process_bag(inFile, outFile, topic, h->second);

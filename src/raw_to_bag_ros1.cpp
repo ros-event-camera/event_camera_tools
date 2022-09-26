@@ -13,9 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <event_array_codecs/decoder.h>
 #include <event_array_msgs/EventArray.h>
-#include <event_array_msgs/decode.h>  // BAD: should no longer be used!
-#include <event_array_msgs/encode.h>  // BAD: should no longer be used!
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <unistd.h>
@@ -25,121 +24,60 @@
 #include <iomanip>
 #include <iostream>
 
-#include "evt_3_utils.h"
+#include "event_array_tools/check_endian.h"
 
 void usage()
 {
   std::cout << "usage:" << std::endl;
-  std::cout << "raw_to_bag -b name_of_bag_file -i name_of_raw_file "
-               "-t topic -f frame_id -w width -h height -e encoding"
+  std::cout << "raw_to_bag -b name_of_bag_file -i name_of_raw_file -t topic -f "
+               "frame_id -w width -h height -B buf_size"
             << std::endl;
 }
 
 namespace event_array_tools
 {
 using event_array_msgs::EventArray;
-using event_array_msgs::mono::bytes_per_event;
 
-static bool is_big_endian()
-{
-  const union {
-    uint32_t i;
-    char c[4];
-  } combined_int = {0x01020304};  // from stackoverflow
-  return (combined_int.c[0] == 1);
-}
-
-class MessageUpdaterMono : public evt_3_utils::MessageUpdater
-{
-public:
-  explicit MessageUpdaterMono(
-    const std::string & bagName, const std::string & topic, const std::string & frameId,
-    uint32_t width, uint32_t height)
-  : t0_ros_(ros::Time::now()), topic_(topic)
-  {
-    bag_.open(bagName, rosbag::bagmode::Write);
-    msg_.header.frame_id = frameId;
-    msg_.width = width;
-    msg_.height = height;
-    msg_.encoding = "mono";
-    msg_.is_bigendian = is_big_endian();
-    msg_.seq = 0;
-  }
-
-  ~MessageUpdaterMono() { bag_.close(); }
-
-  void addEvent(uint64_t ts_ros, uint16_t ex, uint16_t ey, uint8_t polarity) override
-  {
-    if (msg_.events.empty()) {  // starting new message
-      msg_.header.stamp = ros::Time().fromNSec(ts_ros);
-      msg_.time_base = ts_ros;
-    }
-    // nanoseconds since start of message
-    uint32_t dt = ts_ros - msg_.time_base;  // should not overflow
-    constexpr size_t kBufSize = bytes_per_event;
-    uint8_t buffer[kBufSize];
-    event_array_msgs::mono::encode(
-      reinterpret_cast<uint64_t *>(buffer), static_cast<bool>(polarity), ex, ey, dt);
-    msg_.events.insert(msg_.events.end(), buffer, buffer + bytes_per_event);
-    const size_t MAX_MESSAGE_SIZE(20000);
-    // keep MAX_MESSAGE_TIME small enough to not overflow the uint32_t!
-    const uint32_t MAX_MESSAGE_TIME(1000000000);  // in nanoseconds = 1ms
-    if (msg_.events.size() >= MAX_MESSAGE_SIZE || dt > MAX_MESSAGE_TIME) {
-      bag_.write(topic_, msg_.header.stamp, msg_);
-      msg_.events.clear();
-      msg_.seq++;
-    }
-    numEvents_++;
-  }
-
-  uint64_t getROSTime() override { return (t0_ros_.toNSec()); }
-  void bufferRead(const char *, size_t) override {}
-  void finished() override
-  {
-    std::cout << "wrote " << numEvents_ << " events to bag in " << msg_.seq
-              << " messages, msg/event: " << numEvents_ / msg_.seq << std::endl;
-  }
-  // ---------- variables
-  rosbag::Bag bag_;
-  EventArray msg_;
-  ros::Time t0_ros_;
-  std::string topic_;
-  size_t numEvents_{0};
-};
-
-class MessageUpdaterEvt3 : public evt_3_utils::MessageUpdater
+class MessageUpdaterEvt3
 {
 public:
   explicit MessageUpdaterEvt3(
     const std::string & bagName, const std::string & topic, const std::string & frameId,
     uint32_t width, uint32_t height)
-  : t0_ros_(ros::Time::now()), topic_(topic)
+  : topic_(topic)
   {
     bag_.open(bagName, rosbag::bagmode::Write);
     msg_.header.frame_id = frameId;
     msg_.width = width;
     msg_.height = height;
     msg_.encoding = "evt3";
-    msg_.is_bigendian = is_big_endian();
+    msg_.is_bigendian = check_endian::isBigEndian();
     msg_.seq = 0;
+    decoder_ = event_array_codecs::Decoder::newInstance("evt3");
+    if (!decoder_) {
+      std::cerr << "evt3 not supported for decoding!" << std::endl;
+      throw(std::runtime_error("evt3 not supported!"));
+    }
   }
 
   ~MessageUpdaterEvt3() { bag_.close(); }
 
-  void addEvent(uint64_t ts_ros, uint16_t, uint16_t, uint8_t) override
+  void rawData(const char * data, size_t len)
   {
-    if (msg_.events.empty()) {  // starting new message
-      msg_.header.stamp = ros::Time().fromNSec(ts_ros);
-      msg_.time_base = ts_ros;
-      msg_.events.push_back(0);  // to mark message as started
+    uint64_t sensorTime(0);
+    const bool hasValidSensorTime = decoder_->summarize(
+      reinterpret_cast<const uint8_t *>(data), len, &sensorTime, &lastSensorTime_, numEvents_);
+    if (!hasValidRosTime_) {
+      startRosTime_ = ros::Time::now();
+      if (hasValidSensorTime) {
+        startSensorTime_ = sensorTime;
+        hasValidRosTime_ = true;
+      } else {
+        std::cout << "skipping raw packet at beginning without time stamp!" << std::endl;
+        return;
+      }
     }
-    numEvents_++;
-  }
-
-  uint64_t getROSTime() override { return (t0_ros_.toNSec()); }
-
-  void bufferRead(const char * data, size_t len) override
-  {
+    msg_.header.stamp = startRosTime_ + ros::Duration().fromNSec(sensorTime - startSensorTime_);
     msg_.events.clear();  // remove marker
     msg_.events.insert(msg_.events.end(), data, data + len);
     bag_.write(topic_, msg_.header.stamp, msg_);
@@ -147,19 +85,27 @@ public:
     msg_.seq++;
   }
 
-  void finished() override
-  {
-    std::cout << "wrote " << numEvents_ << " events to bag in " << msg_.seq
-              << " messages, msg/event: " << numEvents_ / msg_.seq << std::endl;
-  }
+  const size_t * getNumEvents() const { return (numEvents_); }
   // ---------- variables
   rosbag::Bag bag_;
   EventArray msg_;
-  ros::Time t0_ros_;
   std::string topic_;
-  size_t numEvents_{0};
+  size_t numEvents_[2]{0, 0};
+  std::shared_ptr<event_array_codecs::Decoder> decoder_;
+  bool hasValidRosTime_{false};
+  ros::Time startRosTime_;
+  uint64_t startSensorTime_{0};
+  uint64_t lastSensorTime_{0};
 };
 
+static void skip_header(std::fstream & in)
+{
+  int c;
+  while ((c = in.peek()) == '%') {
+    std::string line;
+    std::getline(in, line);
+  }
+}
 }  // namespace event_array_tools
 
 int main(int argc, char ** argv)
@@ -170,10 +116,10 @@ int main(int argc, char ** argv)
   std::string outFile;
   std::string topic("/event_camera/events");
   std::string frameId("event_camera");
-  std::string encoding("mono");
   int height(480);
   int width(640);
-  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:e:")) != -1) {
+  int bufSize(150000);
+  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:")) != -1) {
     switch (opt) {
       case 'b':
         outFile = optarg;
@@ -193,8 +139,8 @@ int main(int argc, char ** argv)
       case 'h':
         height = atoi(optarg);
         break;
-      case 'e':
-        encoding = optarg;
+      case 'B':
+        bufSize = 2 * atoi(optarg);  // event has 2 bytes!
         break;
       default:
         std::cout << "unknown option: " << opt << std::endl;
@@ -210,24 +156,39 @@ int main(int argc, char ** argv)
   }
   auto start = std::chrono::high_resolution_clock::now();
 
-  size_t numEvents = 0;
   decltype(start) final;
-  if (encoding == "mono") {
-    event_array_tools::MessageUpdaterMono updater(outFile, topic, frameId, width, height);
-    numEvents = event_array_tools::evt_3_utils::read(inFile, &updater);
-    final = std::chrono::high_resolution_clock::now();
-  } else if (encoding == "evt3") {
-    event_array_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
-    numEvents = event_array_tools::evt_3_utils::read(inFile, &updater);
-    final = std::chrono::high_resolution_clock::now();
-  } else {
-    std::cout << "invalid encoding: " << encoding << std::endl;
-  }
-  auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
+  event_array_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
 
-  std::cout << "number of events read: " << numEvents * 1e-6 << " Mev in "
+  std::fstream in;
+  in.open(inFile, std::ios::in | std::ios::binary);
+  if (!in.is_open()) {
+    std::cerr << "cannot open file: " << inFile << std::endl;
+    return (-1);
+  }
+  event_array_tools::skip_header(in);
+  std::vector<char> buffer(bufSize);
+  size_t bytesRead(0);
+  while (true) {
+    in.read(&(buffer[0]), buffer.size());
+    if (in.gcount() != 0) {
+      updater.rawData(reinterpret_cast<char *>(&buffer[0]), in.gcount());
+    }
+    bytesRead += in.gcount();
+    if (in.gcount() < std::streamsize(buffer.size())) {
+      break;
+    }
+  }
+  final = std::chrono::high_resolution_clock::now();
+  auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
+  const size_t numEvents = updater.getNumEvents()[0] + updater.getNumEvents()[1];
+
+  std::cout << "number of bytes read: " << bytesRead * 1e-6 << " MB in "
             << total_duration.count() * 1e-6 << " seconds" << std::endl;
-  std::cout << "event rate: " << static_cast<double>(numEvents) / total_duration.count() << " Mevs"
+  std::cout << "total number of events: " << numEvents << std::endl;
+  std::cout << "data rate: " << static_cast<double>(bytesRead) / total_duration.count() << " MB/s"
             << std::endl;
+  std::cout << "event rate: " << static_cast<double>(numEvents) / total_duration.count() << " Mev/s"
+            << std::endl;
+
   return (0);
 }

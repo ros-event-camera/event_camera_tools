@@ -18,6 +18,8 @@
 #include <event_array_msgs/EventArray.h>
 #include <inttypes.h>
 #include <ros/ros.h>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -27,7 +29,7 @@
 void usage()
 {
   std::cout << "usage:" << std::endl;
-  std::cout << "echo <ros_topic>" << std::endl;
+  std::cout << "echo [-b bag] <ros_topic>" << std::endl;
 }
 
 using event_array_codecs::Decoder;
@@ -36,19 +38,24 @@ using event_array_msgs::EventArray;
 class Echo : public event_array_codecs::EventProcessor
 {
 public:
-  explicit Echo(const std::string & topic, const ros::NodeHandle & nh) : nh_(nh)
-  {
-    ROS_INFO_STREAM("subscribing to " << topic);
-    sub_ = nh_.subscribe(topic, 1, &Echo::eventMsg, this);
-  }
   // ---------- from the EventProcessor interface:
   void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
     printf("%8" PRIu64 " %4d %4d %1d\n", sensor_time, ex, ey, polarity);
+    numCDEvents_[polarity]++;
+    if (cdStamps_[0] == 0) {
+      cdStamps_[0] = sensor_time;
+    }
+    cdStamps_[1] = std::max(cdStamps_[1], sensor_time);
   }
   void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id) override
   {
     printf("%8" PRIu64 " edge: %1d  id: %2d\n", sensor_time, edge, id);
+    numTrigEvents_[edge]++;
+    if (trigStamps_[0] == 0) {
+      trigStamps_[0] = sensor_time;
+    }
+    trigStamps_[1] = std::max(trigStamps_[1], sensor_time);
   }
   void finished() override {}
   void rawData(const char *, size_t) override {}
@@ -58,7 +65,7 @@ public:
   {
     printf("-------------------------------\n");
     printf("res: %4d  height: %4d enc: %s\n", msg->width, msg->height, msg->encoding.c_str());
-    printf("header stamp: %8" PRIu64 "\n", msg->header.stamp.toNSec());
+    printf("header stamp: %8" PRIu64 "\n", ros::Time(msg->header.stamp).toNSec());
     printf("time base: %8" PRIu64 "\n", msg->time_base);
     printf("seqno: %8" PRIu64 "\n", msg->seq);
     printf("---\n");
@@ -76,32 +83,105 @@ public:
     decoder.setTimeBase(msg->time_base);
     decoder.decode(&msg->events[0], msg->events.size(), this);
   }
+  const size_t * getNumCDEvents() { return (numCDEvents_); }
+  const size_t * getNumTrigEvents() { return (numTrigEvents_); }
+  const uint64_t * getCDStamps() { return (cdStamps_); }
+  const uint64_t * getTrigStamps() { return (trigStamps_); }
+
+private:
+  // ---------- variables
+  std::unordered_map<std::string, std::shared_ptr<Decoder>> decoders_;
+  size_t numCDEvents_[2]{0, 0};
+  size_t numTrigEvents_[2]{0, 0};
+  uint64_t cdStamps_[2]{0, 0};
+  uint64_t trigStamps_[2]{0, 0};
+};
+
+class EchoNode
+{
+public:
+  explicit EchoNode(const std::string & topic, const ros::NodeHandle & nh, Echo * echo)
+  : nh_(nh), echo_(echo)
+  {
+    ROS_INFO_STREAM("subscribing to " << topic);
+    sub_ = nh_.subscribe(topic, 1, &Echo::eventMsg, echo_);
+  }
+  void eventMsg(EventArray::ConstPtr msg) { echo_->eventMsg(msg); }
   // ---------- variables
   ros::NodeHandle nh_;
+  Echo * echo_;
   ros::Subscriber sub_;
-  std::unordered_map<std::string, std::shared_ptr<Decoder>> decoders_;
 };
+
+static void read_from_bag(const std::string & bagName, const std::string & topic, Echo * echo)
+{
+  rosbag::Bag bag;
+  std::cout << "reading from bag: " << bagName << " topic: " << topic << std::endl;
+  bag.open(bagName, rosbag::bagmode::Read);
+
+  rosbag::View view(bag, rosbag::TopicQuery({topic}));
+  size_t msgCount;
+  for (const rosbag::MessageInstance & m : view) {
+    if (m.getTopic() == topic) {
+      EventArray::ConstPtr ea = m.instantiate<EventArray>();
+      if (ea) {
+        echo->eventMsg(ea);
+        msgCount++;
+      }
+    }
+  }
+  std::cout << "found " << msgCount << " messages in bag" << std::endl;
+}
 
 int main(int argc, char ** argv)
 {
-  ros::init(argc, argv, "echo");
-  ros::NodeHandle pnh("~");
+  int opt;
 
   std::string topic;
-  switch (argc) {
-    case 2:
-      topic = argv[1];
-      break;
-    default:
-      usage();
-      exit(-1);
+  std::string bagFile;
+  ros::init(argc, argv, "echo");
+  while ((opt = getopt(argc, argv, "b:")) != -1) {
+    switch (opt) {
+      case 'b':
+        bagFile = optarg;
+        break;
+      case 'h':
+        usage();
+        return (-1);
+        break;
+      default:
+        std::cout << "unknown option: " << opt << std::endl;
+        usage();
+        return (-1);
+        break;
+    }
   }
-  try {
-    Echo node(topic, pnh);
-    ros::spin();
-  } catch (const std::exception & e) {
-    ROS_ERROR("%s: %s", pnh.getNamespace().c_str(), e.what());
+  if (optind != argc - 1) {
+    std::cout << "expected topic!" << std::endl;
+    usage();
     return (-1);
   }
+  topic = argv[optind];
+
+  Echo echo;
+  if (bagFile.empty()) {
+    ros::NodeHandle pnh("~");
+    try {
+      EchoNode node(topic, pnh, &echo);
+      ros::spin();
+    } catch (const std::exception & e) {
+      ROS_ERROR("%s: %s", pnh.getNamespace().c_str(), e.what());
+      return (-1);
+    }
+  } else {
+    read_from_bag(bagFile, topic, &echo);
+    size_t totCDEvents = echo.getNumCDEvents()[0] + echo.getNumCDEvents()[1];
+    size_t totTrigEvents = echo.getNumTrigEvents()[0] + echo.getNumTrigEvents()[1];
+    std::cout << "cd      ev: " << totCDEvents << " time: " << echo.getCDStamps()[0] << " -> "
+              << echo.getCDStamps()[1] << std::endl;
+    std::cout << "trigger ev: " << totTrigEvents << " time: " << echo.getTrigStamps()[0] << " -> "
+              << echo.getTrigStamps()[1] << std::endl;
+  }
+
   return (0);
 }

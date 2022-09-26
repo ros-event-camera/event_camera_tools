@@ -41,27 +41,24 @@ ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
 
 ament_auto_add_executable(sync_test  src/sync_test_ros2.cpp)
 
-# ---- echo tool
+# -------- echo tool
 ament_auto_add_executable(echo  src/echo_ros2.cpp)
 
-# ---- performance tool
+# -------- performance tool
 ament_auto_add_executable(perf  src/perf_ros2.cpp)
 
-
-# ---- conversion tools
+# -------- conversion tools
 
 ament_auto_add_executable(bag_to_raw src/bag_to_raw_ros2.cpp)
 ament_auto_add_executable(raw_to_bag src/raw_to_bag_ros2.cpp)
 
-# ---- republish node and composable
-
-ament_auto_add_executable(republish_node  src/republish_node_ros2.cpp)
+# -------- republish node and composable
 
 ament_auto_add_library(republish SHARED src/republish_composable.cpp)
 target_include_directories(republish PRIVATE include)
-
 rclcpp_components_register_nodes(republish "event_array_tools::RepublishComposable")
 
+ament_auto_add_executable(republish_node  src/republish_node_ros2.cpp)
 
 
 # the node must go into the paroject specific lib directory or else

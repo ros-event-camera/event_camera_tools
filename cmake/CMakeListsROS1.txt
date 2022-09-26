@@ -46,21 +46,21 @@ target_link_libraries(echo ${catkin_LIBRARIES})
 add_executable(perf src/perf_ros1.cpp)
 target_link_libraries(perf ${catkin_LIBRARIES})
 
-# --------- republish nodelet
-add_library(republish_nodelet src/republish_nodelet.cpp)
-target_link_libraries(republish_nodelet ${catkin_LIBRARIES})
-
-# --------- republish node
-add_executable(republish_node src/republish_node_ros1.cpp)
-target_link_libraries(republish_node ${catkin_LIBRARIES})
-
 # --------- conversion tools
 
-#add_executable(raw_to_bag src/raw_to_bag_ros1.cpp)
-#target_link_libraries(raw_to_bag ${catkin_LIBRARIES})
+add_executable(raw_to_bag src/raw_to_bag_ros1.cpp)
+target_link_libraries(raw_to_bag ${catkin_LIBRARIES})
 
 add_executable(bag_to_raw src/bag_to_raw_ros1.cpp)
 target_link_libraries(bag_to_raw ${catkin_LIBRARIES})
+
+# --------- republish node and nodelet
+add_library(republish_nodelet src/republish_nodelet.cpp)
+target_link_libraries(republish_nodelet ${catkin_LIBRARIES})
+
+add_executable(republish_node src/republish_node_ros1.cpp)
+target_link_libraries(republish_node ${catkin_LIBRARIES})
+
 
 #############
 ## Install ##

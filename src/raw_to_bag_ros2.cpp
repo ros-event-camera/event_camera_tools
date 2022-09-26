@@ -104,8 +104,6 @@ public:
 private:
   std::unique_ptr<rosbag2_cpp::Writer> writer_;
   EventArray msg_;
-  rclcpp::Time t0_ros_;
-  int64_t t0_sensor_{-1};
   std::string topic_;
   size_t numEvents_[2]{0, 0};
   std::shared_ptr<event_array_codecs::Decoder> decoder_;
@@ -177,9 +175,8 @@ int main(int argc, char ** argv)
     usage();
     return (-1);
   }
-  auto start = std::chrono::high_resolution_clock::now();
+  const auto start = std::chrono::high_resolution_clock::now();
 
-  decltype(start) final;
   event_array_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
   std::fstream in;
   in.open(inFile, std::ios::in | std::ios::binary);
@@ -201,10 +198,10 @@ int main(int argc, char ** argv)
     }
   }
 
-  final = std::chrono::high_resolution_clock::now();
+  const decltype(start) final = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
 
-  size_t numEvents = updater.getNumEvents()[0] + updater.getNumEvents()[1];
+  const size_t numEvents = updater.getNumEvents()[0] + updater.getNumEvents()[1];
   std::cout << "number of bytes read: " << bytesRead / (1024 * 1024) << " MB in "
             << total_duration.count() * 1e-6 << " seconds" << std::endl;
   std::cout << "total number of events: " << numEvents << std::endl;
