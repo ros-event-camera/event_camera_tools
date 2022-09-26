@@ -36,14 +36,15 @@ endforeach()
 
 ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
 
-#
+
+# --------- sync test
+
+ament_auto_add_executable(sync_test  src/sync_test_ros2.cpp)
+
 # ---- echo tool
-#
 ament_auto_add_executable(echo  src/echo_ros2.cpp)
 
-#
-# ---- perf tool
-#
+# ---- performance tool
 ament_auto_add_executable(perf  src/perf_ros2.cpp)
 
 #
@@ -74,6 +75,7 @@ rclcpp_components_register_nodes(republish "event_array_tools::RepublishComposab
 install(TARGETS
   perf
   echo
+  sync_test
   bag_to_raw
   republish_node
 #  raw_to_bag
