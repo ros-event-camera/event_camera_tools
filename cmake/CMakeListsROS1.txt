@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_compile_options(-Wall -Wextra -pedantic -Werror)
+add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 add_definitions(-DUSING_ROS_1)
 
 find_package(catkin REQUIRED COMPONENTS

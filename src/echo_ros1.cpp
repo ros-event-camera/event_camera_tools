@@ -120,7 +120,7 @@ static void read_from_bag(const std::string & bagName, const std::string & topic
   bag.open(bagName, rosbag::bagmode::Read);
 
   rosbag::View view(bag, rosbag::TopicQuery({topic}));
-  size_t msgCount;
+  size_t msgCount(0);
   for (const rosbag::MessageInstance & m : view) {
     if (m.getTopic() == topic) {
       EventArray::ConstPtr ea = m.instantiate<EventArray>();
