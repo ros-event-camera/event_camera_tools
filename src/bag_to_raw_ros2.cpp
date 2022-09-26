@@ -79,7 +79,7 @@ static size_t process_bag(
   std::fstream out;
   out.open(outFile, std::ios::out | std::ios::binary);
   out.write(header.c_str(), header.size());
-  size_t numEvents(0);
+  size_t numBytes(0);
   size_t numMessages(0);
   {
     rosbag2_cpp::Reader reader;
@@ -92,13 +92,13 @@ static size_t process_bag(
         rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
         EventArray m;
         serialization.deserialize_message(&serializedMsg, &m);
-        numEvents +=
+        numBytes +=
           write(out, &m.events[0], m.events.size(), m.time_base, m.encoding, &last_evt_stamp);
         numMessages++;
       }
     }
   }  // close reader when out of scope
-  return (numEvents);
+  return (numBytes);
 }
 }  // namespace event_array_tools
 
@@ -108,7 +108,7 @@ int main(int argc, char ** argv)
 
   std::string inFile;
   std::string outFile;
-  std::string camera("evk4");
+  std::string camera;
   std::string topic("/event_camera/events");
   while ((opt = getopt(argc, argv, "b:o:t:c:h")) != -1) {
     switch (opt) {
@@ -141,23 +141,23 @@ int main(int argc, char ** argv)
     usage();
     return (-1);
   }
-
   const auto h = event_array_tools::headers.find(camera);
-  if (h == event_array_tools::headers.end()) {
-    std::cout << "Unknown camera! Supported are: " << std::endl;
-    for (const auto & c : event_array_tools::headers) {
-      std::cout << c.first << std::endl;
+  if (camera.empty() || h == event_array_tools::headers.end()) {
+    std::cout << "missing or unknown camera, must specify one of these: " << std::endl;
+    for (const auto & h : event_array_tools::headers) {
+      std::cout << "  " << h.first << std::endl;
     }
+    return (-1);
   }
 
   auto start = std::chrono::high_resolution_clock::now();
-  const size_t numEvents = event_array_tools::process_bag(inFile, outFile, topic, h->second);
+  const size_t numBytes = event_array_tools::process_bag(inFile, outFile, topic, h->second);
   auto final = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
 
-  std::cout << "number of events read: " << numEvents * 1e-6 << " Mev in "
+  std::cout << "number of bytes read: " << numBytes * 1e-6 << " MB in "
             << total_duration.count() * 1e-6 << " seconds" << std::endl;
-  std::cout << "event rate: " << static_cast<double>(numEvents) / total_duration.count() << " Mevs"
+  std::cout << "bytes rate: " << static_cast<double>(numBytes) / total_duration.count() << " MB/s"
             << std::endl;
   return (0);
 }

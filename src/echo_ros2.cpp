@@ -22,41 +22,47 @@
 #include <event_array_msgs/msg/event_array.hpp>
 #include <fstream>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/serialization.hpp>
+#include <rclcpp/serialized_message.hpp>
+#include <rosbag2_cpp/reader.hpp>
+#include <rosbag2_cpp/readers/sequential_reader.hpp>
 #include <unordered_map>
 
 void usage()
 {
   std::cout << "usage:" << std::endl;
-  std::cout << "echo <ros_topic>" << std::endl;
+  std::cout << "echo [-b bag] <ros_topic>" << std::endl;
 }
 
 using event_array_codecs::Decoder;
 using event_array_msgs::msg::EventArray;
 
-class Echo : public rclcpp::Node, public event_array_codecs::EventProcessor
+class Echo : public event_array_codecs::EventProcessor
 {
 public:
-  explicit Echo(const std::string & topic, const rclcpp::NodeOptions & options)
-  : Node("echo", options)
-  {
-    const int qsize = 1000;
-    auto qos = rclcpp::QoS(rclcpp::KeepLast(qsize)).best_effort().durability_volatile();
-    RCLCPP_INFO_STREAM(this->get_logger(), "subscribing to " << topic);
-    sub_ = this->create_subscription<EventArray>(
-      topic, qos, std::bind(&Echo::eventMsg, this, std::placeholders::_1));
-  }
   // ---------- from the EventProcessor interface:
   void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
     printf("%8" PRIu64 " %4d %4d %1d\n", sensor_time, ex, ey, polarity);
+    numCDEvents_[polarity]++;
+    if (cdStamps_[0] == 0) {
+      cdStamps_[0] = sensor_time;
+    }
+    cdStamps_[1] = std::max(cdStamps_[1], sensor_time);
   }
   void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id) override
   {
     printf("%8" PRIu64 " edge: %1d  id: %2d\n", sensor_time, edge, id);
+    numTrigEvents_[edge]++;
+    if (trigStamps_[0] == 0) {
+      trigStamps_[0] = sensor_time;
+    }
+    trigStamps_[1] = std::max(trigStamps_[1], sensor_time);
   }
   void finished() override {}
   void rawData(const char *, size_t) override {}
   // -------- end of inherited
+
   void eventMsg(EventArray::ConstSharedPtr msg)
   {
     printf("-------------------------------\n");
@@ -79,25 +85,98 @@ public:
     decoder.setTimeBase(msg->time_base);
     decoder.decode(&msg->events[0], msg->events.size(), this);
   }
+  const size_t * getNumCDEvents() { return (numCDEvents_); }
+  const size_t * getNumTrigEvents() { return (numTrigEvents_); }
+  const uint64_t * getCDStamps() { return (cdStamps_); }
+  const uint64_t * getTrigStamps() { return (trigStamps_); }
+
+private:
+  // ---------- variables
+  std::unordered_map<std::string, std::shared_ptr<Decoder>> decoders_;
+  size_t numCDEvents_[2]{0, 0};
+  size_t numTrigEvents_[2]{0, 0};
+  uint64_t cdStamps_[2]{0, 0};
+  uint64_t trigStamps_[2]{0, 0};
+};
+
+class EchoNode : public rclcpp::Node
+{
+public:
+  explicit EchoNode(const rclcpp::NodeOptions & options, const std::string & topic, Echo * echo)
+  : Node("echo", options), echo_(echo)
+  {
+    const int qsize = 1000;
+    auto qos = rclcpp::QoS(rclcpp::KeepLast(qsize)).best_effort().durability_volatile();
+    RCLCPP_INFO_STREAM(this->get_logger(), "subscribing to " << topic);
+    sub_ = this->create_subscription<EventArray>(
+      topic, qos, std::bind(&EchoNode::eventMsg, this, std::placeholders::_1));
+  }
+  void eventMsg(EventArray::ConstSharedPtr msg) { echo_->eventMsg(msg); }
+
+private:
   // ---------- variables
   rclcpp::Subscription<EventArray>::SharedPtr sub_;
-  std::unordered_map<std::string, std::shared_ptr<Decoder>> decoders_;
+  Echo * echo_;
 };
+
+static void read_from_bag(const std::string & bagName, const std::string & topic, Echo * echo)
+{
+  rosbag2_cpp::Reader reader;
+  reader.open(bagName);
+  rclcpp::Serialization<EventArray> serialization;
+  while (reader.has_next()) {
+    auto msg = reader.read_next();
+    if (msg->topic_name == topic) {
+      rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
+      auto m = std::make_shared<EventArray>();
+      serialization.deserialize_message(&serializedMsg, m.get());
+      echo->eventMsg(m);
+    }
+  }
+}
 
 int main(int argc, char ** argv)
 {
+  int opt;
+
   std::string topic;
+  std::string bagFile;
   rclcpp::init(argc, argv);
-  switch (argc) {
-    case 2:
-      topic = argv[1];
-      break;
-    default:
-      usage();
-      exit(-1);
+  while ((opt = getopt(argc, argv, "b:")) != -1) {
+    switch (opt) {
+      case 'b':
+        bagFile = optarg;
+        break;
+      case 'h':
+        usage();
+        return (-1);
+        break;
+      default:
+        std::cout << "unknown option: " << opt << std::endl;
+        usage();
+        return (-1);
+        break;
+    }
   }
-  auto node = std::make_shared<Echo>(topic, rclcpp::NodeOptions());
-  rclcpp::spin(node);  // should not return
-  rclcpp::shutdown();
+  if (optind != argc - 1) {
+    std::cout << "expected topic!" << std::endl;
+    usage();
+    return (-1);
+  }
+  topic = argv[optind];
+  Echo echo;
+  if (bagFile.empty()) {
+    auto node = std::make_shared<EchoNode>(rclcpp::NodeOptions(), topic, &echo);
+    rclcpp::spin(node);  // should not return
+    rclcpp::shutdown();
+  } else {
+    read_from_bag(bagFile, topic, &echo);
+    size_t totCDEvents = echo.getNumCDEvents()[0] + echo.getNumCDEvents()[1];
+    size_t totTrigEvents = echo.getNumTrigEvents()[0] + echo.getNumTrigEvents()[1];
+    std::cout << "cd      ev: " << totCDEvents << " time: " << echo.getCDStamps()[0] << " -> "
+              << echo.getCDStamps()[1] << std::endl;
+    std::cout << "trigger ev: " << totTrigEvents << " time: " << echo.getTrigStamps()[0] << " -> "
+              << echo.getTrigStamps()[1] << std::endl;
+  }
   return 0;
 }

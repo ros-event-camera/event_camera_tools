@@ -14,9 +14,7 @@
 // limitations under the License.
 
 #include <assert.h>
-#include <event_array_msgs/decode.h>       // BAD: should no longer be used
-#include <event_array_msgs/decode_evt3.h>  // BAD: should no longer be used
-#include <event_array_msgs/encode.h>       // BAD: should no longer be used
+#include <event_array_codecs/decoder.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -32,111 +30,21 @@
 #include <rosbag2_cpp/writers/sequential_writer.hpp>
 #include <rosbag2_storage/serialized_bag_message.hpp>
 
+#include "event_array_tools/check_endian.h"
+
 void usage()
 {
   std::cout << "usage:" << std::endl;
   std::cout << "raw_to_bag -b name_of_bag_file -i name_of_raw_file -t topic -f "
-               "frame_id -w width -h height -e encoding"
+               "frame_id -w width -h height -B buf_size"
             << std::endl;
 }
 
 namespace event_array_tools
 {
-using event_array_msgs::mono::bytes_per_event;
 using event_array_msgs::msg::EventArray;
 
-static bool is_big_endian()
-{
-  const union {
-    uint32_t i;
-    char c[4];
-  } combined_int = {0x01020304};  // from stackoverflow
-  return (combined_int.c[0] == 1);
-}
-
-class MessageUpdaterMono : public event_array_msgs::EventProcessor
-{
-public:
-  explicit MessageUpdaterMono(
-    const std::string & bagName, const std::string & topic, const std::string & frameId,
-    uint32_t width, uint32_t height)
-  : topic_(topic)
-  {
-    writer_ = std::make_unique<rosbag2_cpp::Writer>();
-    writer_->open(bagName);
-    writer_->create_topic(
-      {topic, "event_array_msgs/msg/EventArray", rmw_get_serialization_format(), ""});
-    topic_ = topic;
-    msg_.header.frame_id = frameId;
-    msg_.width = width;
-    msg_.height = height;
-    msg_.encoding = "mono";
-    msg_.is_bigendian = is_big_endian();
-    msg_.seq = 0;
-  }
-  ~MessageUpdaterMono() { writer_.reset(); }
-
-  void eventCD(uint64_t sensorTime, uint16_t ex, uint16_t ey, uint8_t polarity) override
-  {
-    if (t0_sensor_ < 0) {
-      t0_sensor_ = sensorTime;
-      t0_ros_ = rclcpp::Clock().now();
-    }
-    const uint64_t ts_ros = t0_ros_.nanoseconds() + sensorTime - t0_sensor_;
-    if (msg_.events.empty()) {  // starting new message
-      msg_.time_base = ts_ros;
-      msg_.header.stamp = rclcpp::Time(ts_ros, RCL_SYSTEM_TIME);
-    }
-    if (sensorTime < lastTime_) {
-      std::cout << "bad sensor time: " << sensorTime << " vs: " << lastTime_ << std::endl;
-    }
-    lastTime_ = sensorTime;
-    // nanoseconds since start of message
-    uint32_t dt = ts_ros - msg_.time_base;  // should not overflow
-    constexpr size_t kBufSize = bytes_per_event;
-    uint8_t buffer[kBufSize];
-    event_array_msgs::mono::encode(
-      reinterpret_cast<uint64_t *>(buffer), static_cast<bool>(polarity), ex, ey, dt);
-    msg_.events.insert(msg_.events.end(), buffer, buffer + bytes_per_event);
-    const size_t MAX_MESSAGE_SIZE(20000);
-    // keep MAX_MESSAGE_TIME small enough to not overflow the uint32_t!
-    const uint32_t MAX_MESSAGE_TIME(1000000000);  // in nanoseconds = 1ms
-    if (msg_.events.size() >= MAX_MESSAGE_SIZE || dt > MAX_MESSAGE_TIME) {
-      rclcpp::SerializedMessage serialized_msg;
-      rclcpp::Serialization<EventArray> serialization;
-      serialization.serialize_message(&msg_, &serialized_msg);
-      writer_->write(
-        serialized_msg, topic_, "event_array_msgs/msg/EventArray", rclcpp::Time(msg_.header.stamp));
-      msg_.events.clear();
-      std::cout << msg_.seq << " t: " << rclcpp::Time(msg_.header.stamp).nanoseconds() << std::endl;
-      msg_.seq++;
-    }
-    numEvents_++;
-  }
-
-  void eventExtTrigger(uint64_t, uint8_t, uint8_t) override
-  {
-    // TODO(Bernd) handle external trigger events
-  }
-
-  void rawData(const char *, size_t) override {}
-
-  void finished() override
-  {
-    std::cout << "wrote " << numEvents_ << " events to bag in " << msg_.seq
-              << " messages, msg/event: " << numEvents_ / msg_.seq << std::endl;
-  }
-  // ---------- variables
-  std::unique_ptr<rosbag2_cpp::Writer> writer_;
-  EventArray msg_;
-  rclcpp::Time t0_ros_;
-  int64_t t0_sensor_{-1};
-  std::string topic_;
-  size_t numEvents_{0};
-  uint64_t lastTime_{0};
-};
-
-class MessageUpdaterEvt3 : public event_array_msgs::EventProcessor
+class MessageUpdaterEvt3
 {
 public:
   explicit MessageUpdaterEvt3(
@@ -152,33 +60,35 @@ public:
     msg_.width = width;
     msg_.height = height;
     msg_.encoding = "evt3";
-    msg_.is_bigendian = is_big_endian();
+    msg_.is_bigendian = check_endian::isBigEndian();
     msg_.seq = 0;
+    decoder_ = event_array_codecs::Decoder::newInstance("evt3");
+    if (!decoder_) {
+      std::cerr << "evt3 not supported for decoding!" << std::endl;
+      throw(std::runtime_error("evt3 not supported!"));
+    }
   }
 
   ~MessageUpdaterEvt3() { writer_.reset(); }
 
-  void eventCD(uint64_t sensorTime, uint16_t, uint16_t, uint8_t) override
+  void rawData(const char * data, size_t len)
   {
-    if (t0_sensor_ < 0) {
-      t0_sensor_ = sensorTime;
-      t0_ros_ = rclcpp::Clock().now();
-    }
-    if (msg_.events.empty()) {  // starting new message
-      const uint64_t ts_ros = t0_ros_.nanoseconds() + sensorTime - t0_sensor_;
-      msg_.time_base = ts_ros;
-      msg_.header.stamp = rclcpp::Time(msg_.time_base, RCL_SYSTEM_TIME);
-      msg_.events.push_back(0);  // to mark message as started
-    }
-    numEvents_++;
-  }
-  void eventExtTrigger(uint64_t, uint8_t, uint8_t) override
-  {
-    // TODO(Bernd) handle external trigger events
-  }
+    uint64_t sensorTime(0);
+    const bool hasValidSensorTime = decoder_->summarize(
+      reinterpret_cast<const uint8_t *>(data), len, &sensorTime, &lastSensorTime_, numEvents_);
 
-  void rawData(const char * data, size_t len) override
-  {
+    if (!hasValidRosTime_) {
+      startRosTime_ = rclcpp::Clock().now();
+      if (hasValidSensorTime) {
+        startSensorTime_ = sensorTime;
+        hasValidRosTime_ = true;
+      } else {
+        std::cout << "skipping raw packet at beginning without time stamp!" << std::endl;
+        return;
+      }
+    }
+    msg_.header.stamp =
+      startRosTime_ + rclcpp::Duration(std::chrono::nanoseconds(sensorTime - startSensorTime_));
     msg_.events.clear();  // remove marker
     msg_.events.insert(msg_.events.end(), data, data + len);
     rclcpp::SerializedMessage serialized_msg;
@@ -189,19 +99,20 @@ public:
     msg_.events.clear();  // mark as new
     msg_.seq++;
   }
+  const size_t * getNumEvents() const { return (numEvents_); }
 
-  void finished() override
-  {
-    std::cout << "wrote " << numEvents_ << " events to bag in " << msg_.seq
-              << " messages, msg/event: " << numEvents_ / msg_.seq << std::endl;
-  }
-  // ---------- variables
+private:
   std::unique_ptr<rosbag2_cpp::Writer> writer_;
   EventArray msg_;
   rclcpp::Time t0_ros_;
   int64_t t0_sensor_{-1};
   std::string topic_;
-  size_t numEvents_{0};
+  size_t numEvents_[2]{0, 0};
+  std::shared_ptr<event_array_codecs::Decoder> decoder_;
+  bool hasValidRosTime_{false};
+  rclcpp::Time startRosTime_;
+  uint64_t startSensorTime_{0};
+  uint64_t lastSensorTime_{0};
 };
 
 static void skip_header(std::fstream & in)
@@ -211,21 +122,6 @@ static void skip_header(std::fstream & in)
     std::string line;
     std::getline(in, line);
   }
-}
-
-size_t read(const std::string & inFile, event_array_msgs::EventProcessor * processor)
-{
-  std::fstream in;
-  in.open(inFile, std::ios::in | std::ios::binary);
-  skip_header(in);
-  char buffer[1000 * sizeof(event_array_msgs::evt3::Event)];
-  event_array_msgs::evt3::Decoder decoder;
-  while (in.read(buffer, sizeof(buffer))) {
-    decoder.processBuffer(reinterpret_cast<uint8_t *>(buffer), in.gcount(), processor);
-    processor->rawData(reinterpret_cast<char *>(buffer), in.gcount());
-  }
-  processor->finished();
-  return (decoder.getNumEvents());
 }
 
 }  // namespace event_array_tools
@@ -238,10 +134,10 @@ int main(int argc, char ** argv)
   std::string outFile;
   std::string topic("/event_camera/events");
   std::string frameId("event_camera");
-  std::string encoding("mono");
-  int height(480);
-  int width(640);
-  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:e:")) != -1) {
+  int height(0);
+  int width(0);
+  int bufSize(150000);
+  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:B:")) != -1) {
     switch (opt) {
       case 'b':
         outFile = optarg;
@@ -261,6 +157,9 @@ int main(int argc, char ** argv)
       case 'h':
         height = atoi(optarg);
         break;
+      case 'B':
+        bufSize = 2 * atoi(optarg);  // event has 2 bytes!
+        break;
       default:
         std::cout << "unknown option: " << opt << std::endl;
         usage();
@@ -273,26 +172,45 @@ int main(int argc, char ** argv)
     usage();
     return (-1);
   }
+  if (height == 0 || width == 0) {
+    std::cout << "missing geometry, must specify height and width!" << std::endl;
+    usage();
+    return (-1);
+  }
   auto start = std::chrono::high_resolution_clock::now();
 
-  size_t numEvents = 0;
   decltype(start) final;
-  if (encoding == "mono") {
-    event_array_tools::MessageUpdaterMono updater(outFile, topic, frameId, width, height);
-    numEvents = event_array_tools::read(inFile, &updater);
-    final = std::chrono::high_resolution_clock::now();
-  } else if (encoding == "evt3") {
-    event_array_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
-    numEvents = event_array_tools::read(inFile, &updater);
-    final = std::chrono::high_resolution_clock::now();
-  } else {
-    std::cout << "invalid encoding: " << encoding << std::endl;
+  event_array_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
+  std::fstream in;
+  in.open(inFile, std::ios::in | std::ios::binary);
+  if (!in.is_open()) {
+    std::cerr << "cannot open file: " << inFile << std::endl;
+    return (-1);
   }
+  event_array_tools::skip_header(in);
+  std::vector<char> buffer(bufSize);
+  size_t bytesRead(0);
+  while (true) {
+    in.read(&(buffer[0]), buffer.size());
+    if (in.gcount() != 0) {
+      updater.rawData(reinterpret_cast<char *>(&buffer[0]), in.gcount());
+    }
+    bytesRead += in.gcount();
+    if (in.gcount() < std::streamsize(buffer.size())) {
+      break;
+    }
+  }
+
+  final = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
 
-  std::cout << "number of events read: " << numEvents * 1e-6 << " Mev in "
+  size_t numEvents = updater.getNumEvents()[0] + updater.getNumEvents()[1];
+  std::cout << "number of bytes read: " << bytesRead / (1024 * 1024) << " MB in "
             << total_duration.count() * 1e-6 << " seconds" << std::endl;
-  std::cout << "event rate: " << static_cast<double>(numEvents) / total_duration.count() << " Mevs"
+  std::cout << "total number of events: " << numEvents << std::endl;
+  std::cout << "byte rate: " << static_cast<double>(bytesRead) / total_duration.count() << " MB/s"
+            << std::endl;
+  std::cout << "event rate: " << static_cast<double>(numEvents) / total_duration.count() << " Mev/s"
             << std::endl;
   return (0);
 }
