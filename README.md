@@ -73,7 +73,7 @@ All tools are provided in ROS and ROS2 (syntax below is for ROS):
   Sample output:
   ```
   msgs:   219.48/s drp:  0 del: 13.72ms drft: 0.0033s ev:   0.0823 M/s %ON:  46 tr:  1758.38 1/s %UP:  50
-msgs:   249.01/s drp:  0 del:  4.35ms drft: 0.0027s ev:   0.8497 M/s %ON:  52 tr:  1999.56 1/s %UP:  49
+  msgs:   249.01/s drp:  0 del:  4.35ms drft: 0.0027s ev:   0.8497 M/s %ON:  52 tr:  1999.56 1/s %UP:  49
    ```
    The meaning of the fields is as follows:
    - ``msgs`` message rate per seconds
