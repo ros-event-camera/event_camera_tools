@@ -1,13 +1,12 @@
 <launch>
-  <arg name="bias_file" default=""/>
-	#launch-prefix="gdb -ex run --args" 
+  <arg name="camera" default="event_camera"/>
+  <arg name="message_type" default="event_array"/>
   <node pkg="event_array_tools" type="republish_node"
 	name="republish" clear_params="true" output="screen">
-    <param name="output_message_type" value="event_array"/>
-    <param name="output_message_encoding" value="mono"/>
-    <remap from="~/input_events" to="/event_camera/events"/>
+    <param name="output_message_type" value="$(arg message_type)"/>
+    <remap from="~/input_events" to="/$(arg camera)/events"/>
     <remap from="~/output_events"
-	   to="/event_camera/republished_events"/>
-    <remap from="~/output_triggers" to="/event_camera/republished_triggers"/>
+	   to="/$(arg camera)/republished_events"/>
+    <remap from="~/output_triggers" to="/$(arg camera)/republished_triggers"/>
   </node>
 </launch>

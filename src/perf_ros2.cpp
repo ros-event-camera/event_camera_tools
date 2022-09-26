@@ -51,12 +51,12 @@ public:
   // ---------- from the EventProcessor interface:
   void eventCD(uint64_t sensor_time, uint16_t, uint16_t, uint8_t p) override
   {
-    lastSensorTime_ = sensor_time * 1000;
+    lastSensorTime_ = sensor_time;
     cdEvents_[std::min(uint8_t(1), p)]++;
   }
   void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t /*id*/) override
   {
-    lastSensorTime_ = sensor_time * 1000;
+    lastSensorTime_ = sensor_time;
     trEvents_[std::min(uint8_t(1), edge)]++;
   }
   void finished() override {}

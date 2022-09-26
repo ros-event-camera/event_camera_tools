@@ -78,7 +78,7 @@ void SyncTest::timerExpired(const ros::TimerEvent &)
   if (count_[0] && count_[1] > 0) {
     const auto count = count_[0] + count_[1];
     const double avg = sumOfDiffs_ / count;
-    ROS_INFO_STREAM("avg sensor diff: " << avg << " count: " << count);
+    printf("avg sensor diff: %8.5lfs, count: %5zu\n", avg, count);
   } else {
     ROS_WARN_STREAM("no messages received: cam0: " << count_[0] << " cam1:  " << count_[1]);
   }

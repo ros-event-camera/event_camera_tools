@@ -32,8 +32,7 @@ def launch_setup(context, *args, **kwargs):
                 # prefix=['xterm -e gdb -ex run --args'],
                 name="republisher",
                 parameters=[
-                    {'output_message_type': 'event_array',
-                     'output_message_encoding': 'mono'}],
+                    {'output_message_type': 'event_array'}],
                 remappings=[
                     ('~/input_events', cam_str + '/events'),
                     ('~/output_events', cam_str + '/republished_events'),

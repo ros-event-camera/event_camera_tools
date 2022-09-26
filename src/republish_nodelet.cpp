@@ -31,7 +31,8 @@ public:
   void onInit() override
   {
     nh_ = getPrivateNodeHandle();
-    const std::string type = nh_.param<std::string>("output_message_type", "dvs");
+    const std::string type = nh_.param<std::string>("output_message_type", "event_array");
+    ROS_INFO_STREAM("republishing as message type: " << type);
     if (type == "dvs") {
       nodeDvs_ = std::make_shared<Republish<dvs_msgs::EventArray>>(nh_);
     } else if (type == "prophesee") {

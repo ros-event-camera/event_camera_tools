@@ -29,6 +29,7 @@ int main(int argc, char ** argv)
   ros::NodeHandle pnh("~");
 
   const std::string type = pnh.param<std::string>("output_message_type", "event_array");
+  ROS_INFO_STREAM("republishing as message type: " << type);
   if (type == "dvs") {
     event_array_tools::Republish<dvs_msgs::EventArray> node(pnh);
     ros::spin();

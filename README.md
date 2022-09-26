@@ -4,7 +4,7 @@ This repository holds tools for displaying and converting event_array_msgs under
 
 ## Supported platforms
 
-Currently tested on Ubuntu 20.04 under under ROS Noetic and ROS2 Galactic.
+Currently tested on Ubuntu 20.04 under ROS Noetic and ROS2 Galactic.
 
 
 ## How to build
@@ -12,12 +12,13 @@ Create a workspace (``event_array_tools_ws``), clone this repo, and use ``wstool
 to pull in the remaining dependencies:
 
 ```
-mkdir -p ~/event_array_tools_ws/src
-cd ~/event_array_tools_ws
-git clone https://github.com/berndpfrommer/event_array_tools.git src/event_array_tools
-wstool init src src/event_array_tools/event_array_tools.rosinstall
+pkg=event_array_tools
+mkdir -p ~/${pkg}_ws/src
+cd ~/${pkg}_ws
+git clone https://github.com/berndpfrommer/${pkg}.git src/${pkg}
+wstool init src src/${pkg}/${pkg}.rosinstall
 # to update an existing space:
-# wstool merge -t src src/event_array_tools/event_array_tools.rosinstall
+# wstool merge -t src src/${pkg}/${pkg}.rosinstall
 # wstool update -t src
 ```
 
@@ -31,55 +32,77 @@ catkin build
 ### configure and build on ROS2:
 
 ```
-cd ~/event_array_tools_ws
+cd ~/${pkg}_ws
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  # (optionally add -DCMAKE_EXPORT_COMPILE_COMMANDS=1)
+```
+
+## Republish conversion nodelet
+
+The ``republish`` node converts event_array_msgs to legacy formats
+like dvs, prophesee, and decoded ("mono") event_array messages. Note
+that this nodelet will be consuming a significant amount of CPU
+resources and should not be run unnecessarily while recording data.
+The following command will start a conversion nodelet to republish
+events from ``/event_camera/events`` to
+``/event_camera/republished_events`` and
+``/event_camera/republished_triggers``
+(similar syntax under ROS2, see launch file for remapping):
+```
+roslaunch event_array_tools republish_nodelet.launch camera:=event_camera message_type:=event_array
 ```
 
 ## Tools
 
-### Converting bags to and from raw
+All tools are provided in ROS and ROS2 (syntax below is for ROS):
 
-ROS1 examples:
-```
-rosrun metavision_ros_tools bag_to_raw -t /event_camera/events -b foo.bag -o foo.raw -c silkyev
-rosrun metavision_ros_tools raw_to_bag -t /event_camera/events -i foo.raw -b foo.bag -f frame_id -w width -h height -e evt3
-```
-
-ROS2 examples:
-```
-ros2 run metavision_ros_tools bag_to_raw -t /event_camera/events -b foo.bag -o foo.raw -c silkyev
-ros2 run metavision_ros_tools raw_to_bag -t /event_camera/events -i foo.raw -b foo.bag -f frame_id -w width -h height -e evt3
-```
-
-### Displaying rate and latency statistics
-
-How to use (ROS1):
-```
-rosrun event_array_tools perf <ros_topic_of_events_here>
-```
-
-How to use (ROS2):
-```
-ros2 run event_array_tools perf <ros_topic_of_events_here>
-```
-
-This should give an output like this.
-```
-events:  33.3294 M/s msgs:   879.98/s drop:   3 delay:  0.50ms
-events:  33.5153 M/s msgs:   882.50/s drop:   4 delay:  0.59ms
-events:  33.5654 M/s msgs:   882.00/s drop:   2 delay:  0.73ms
-events:  33.5919 M/s msgs:   886.50/s drop:   1 delay:  0.76ms
-events:   9.2681 M/s msgs:   240.49/s drop:   1 delay:  0.86ms
-```
- The important part is
-"delay". It gives the average time difference between when the message
-arrived at the subscriber (``perf``), and the stamp that is put on by the
-driver (header.stamp in the message). The delay should be positive and
-between 0 and 1 ms. Give the driver a bit of time after startup to
-figure out how to set the timestamps right.
-Also important: "drop" is the number of ROS packets that where
-published by the driver but not received by ``perf``.
-
+- ``rosrun event_array_tools echo [-b <bag>] <topic>``: displays messages in
+  ``event_array_msgs`` format, optionally from a bag file. Example output:
+  ```
+  -------------------------------
+  res:  640  height:  480 enc: evt3
+  header stamp: 1664227781775114816
+  time base:        0
+  seqno:   129213
+  ---
+  6851488000 edge: 1  id:  6
+  6851510000  390  223 1
+  6851520000   33  326 0
+  ...
+  ```
+- ``rosrun event_array_tools perf <topic>``:
+  Sample output:
+  ```
+  msgs:   219.48/s drp:  0 del: 13.72ms drft: 0.0033s ev:   0.0823 M/s %ON:  46 tr:  1758.38 1/s %UP:  50
+msgs:   249.01/s drp:  0 del:  4.35ms drft: 0.0027s ev:   0.8497 M/s %ON:  52 tr:  1999.56 1/s %UP:  49
+   ```
+   The meaning of the fields is as follows:
+   - ``msgs`` message rate per seconds
+   - ``drp`` number of drops per second (skip in sequence numbers)
+   - ``del`` delay: average time difference between message header
+     stamp and arrival time. This includes the delay due to the driver
+     aggregating messages.
+   - ``drft`` accumulated (from start of "perf") drift between message
+     header stamp and sensor-provided time.
+   - ``ev`` event rate in millions/sec
+   - ``%ON`` ratio of ON events to total (ON + OFF) events
+   - ``tr`` rate of trigger messages
+   - ``%UP`` ratio of UP trigger edges to total (UP + DOWN)
+- ``rosrun event_array_tools sync_test <cam_0_event_topic> <cam_1_event_topic>``
+  The output gives the average sensor time difference and how many
+  samples where counted:
+  ```
+  avg sensor diff:  0.00846s, count:   360
+  avg sensor diff:  0.00377s, count:   466
+  ...
+  ```
+- ``rosrun event_array_tools bag_to_raw -t <topic> -b <bag_name> -o <outout_raw_file> -c <camera_type>`` 
+  Converts bags with evt3 event_array_msgs to raw file. The
+  ``camera_type`` argument is necessary to produce a valid header for
+  the raw file.
+- ``rosrun event_array_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -B <buffer_size>``
+  Converts raw file into bag with evt3 event_array_msgs. The buffer
+  size determines the size and number of ROS messages in the bag.
+  
 ## License
 
 This software is issued under the Apache License Version 2.0.
