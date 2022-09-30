@@ -104,6 +104,8 @@ All tools are provided in ROS and ROS2 (syntax below is for ROS):
 - ``rosrun event_array_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -B <buffer_size>``
   Converts raw file into bag with evt3 event_array_msgs. The buffer
   size determines the size and number of ROS messages in the bag.
+- ``rosrun event_array_tools movie_maker -f <fps> -b <bag_name> -t <topic>``:
+  produces sequence of frame images.
   
 ## License
 

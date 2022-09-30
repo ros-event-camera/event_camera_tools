@@ -13,12 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set(CMAKE_CXX_STANDARD 17)
+
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
+
+find_package(OpenCV REQUIRED)
 
 set(ROS2_DEPENDENCIES
   "rclcpp"
@@ -52,6 +56,11 @@ ament_auto_add_executable(perf  src/perf_ros2.cpp)
 ament_auto_add_executable(bag_to_raw src/bag_to_raw_ros2.cpp)
 ament_auto_add_executable(raw_to_bag src/raw_to_bag_ros2.cpp)
 
+# -------- movie maker
+
+ament_auto_add_executable(movie_maker  src/movie_maker_ros2.cpp)
+target_link_libraries(movie_maker opencv_core opencv_imgcodecs)
+
 # -------- republish node and composable
 
 ament_auto_add_library(republish SHARED src/republish_composable.cpp)
@@ -70,6 +79,7 @@ install(TARGETS
   sync_test
   bag_to_raw
   raw_to_bag
+  movie_maker
   republish_node
   DESTINATION lib/${PROJECT_NAME}/)
 

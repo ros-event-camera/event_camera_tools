@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set(CMAKE_CXX_STANDARD 17)
+
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+
 add_definitions(-DUSING_ROS_1)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -25,7 +28,9 @@ find_package(catkin REQUIRED COMPONENTS
   event_array_codecs
   rosbag
   )
-  
+
+find_package(OpenCV REQUIRED)
+
 catkin_package()
 
 
@@ -54,6 +59,10 @@ target_link_libraries(raw_to_bag ${catkin_LIBRARIES})
 add_executable(bag_to_raw src/bag_to_raw_ros1.cpp)
 target_link_libraries(bag_to_raw ${catkin_LIBRARIES})
 
+# --------- movie maker
+add_executable(movie_maker src/movie_maker_ros1.cpp)
+target_link_libraries(movie_maker ${catkin_LIBRARIES} opencv_core opencv_imgcodecs)
+
 # --------- republish node and nodelet
 add_library(republish_nodelet src/republish_nodelet.cpp)
 target_link_libraries(republish_nodelet ${catkin_LIBRARIES})
@@ -66,7 +75,7 @@ target_link_libraries(republish_node ${catkin_LIBRARIES})
 ## Install ##
 #############
 
-install(TARGETS republish_nodelet echo perf bag_to_raw republish_node
+install(TARGETS republish_nodelet echo perf bag_to_raw movie_maker republish_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
