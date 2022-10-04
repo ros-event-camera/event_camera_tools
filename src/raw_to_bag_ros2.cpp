@@ -15,6 +15,7 @@
 
 #include <assert.h>
 #include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -44,9 +45,16 @@ namespace event_array_tools
 {
 using event_array_msgs::msg::EventArray;
 
-class MessageUpdaterEvt3
+class MessageUpdaterEvt3 : public event_array_codecs::EventProcessor
 {
 public:
+  // ------ inherited from event processor, not used
+  void eventCD(uint64_t, uint16_t, uint16_t, uint8_t) {}
+  void eventExtTrigger(uint64_t, uint8_t, uint8_t) {}
+  void finished() {}
+  void rawData(const char *, size_t) {}
+  // --------- end of inherited
+
   explicit MessageUpdaterEvt3(
     const std::string & bagName, const std::string & topic, const std::string & frameId,
     uint32_t width, uint32_t height)
@@ -62,7 +70,7 @@ public:
     msg_.encoding = "evt3";
     msg_.is_bigendian = check_endian::isBigEndian();
     msg_.seq = 0;
-    decoder_ = event_array_codecs::Decoder::newInstance("evt3");
+    decoder_ = decoderFactory_.getInstance("evt3");
     if (!decoder_) {
       std::cerr << "evt3 not supported for decoding!" << std::endl;
       throw(std::runtime_error("evt3 not supported!"));
@@ -71,7 +79,7 @@ public:
 
   ~MessageUpdaterEvt3() { writer_.reset(); }
 
-  void rawData(const char * data, size_t len)
+  void processRawData(const char * data, size_t len)
   {
     uint64_t sensorTime(0);
     const bool hasValidSensorTime = decoder_->summarize(
@@ -106,7 +114,8 @@ private:
   EventArray msg_;
   std::string topic_;
   size_t numEvents_[2]{0, 0};
-  std::shared_ptr<event_array_codecs::Decoder> decoder_;
+  event_array_codecs::DecoderFactory<MessageUpdaterEvt3> decoderFactory_;
+  std::shared_ptr<event_array_codecs::Decoder<MessageUpdaterEvt3>> decoder_;
   bool hasValidRosTime_{false};
   rclcpp::Time startRosTime_;
   uint64_t startSensorTime_{0};
@@ -190,7 +199,7 @@ int main(int argc, char ** argv)
   while (true) {
     in.read(&(buffer[0]), buffer.size());
     if (in.gcount() != 0) {
-      updater.rawData(reinterpret_cast<char *>(&buffer[0]), in.gcount());
+      updater.processRawData(reinterpret_cast<char *>(&buffer[0]), in.gcount());
     }
     bytesRead += in.gcount();
     if (in.gcount() < std::streamsize(buffer.size())) {

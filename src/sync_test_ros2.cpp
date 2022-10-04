@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <event_array_codecs/event_processor.h>
 
 #include <event_array_msgs/msg/event_array.hpp>
@@ -34,12 +34,18 @@ using EventArray = event_array_msgs::msg::EventArray;
 using EventArrayConstPtr = EventArray::ConstSharedPtr;
 
 class SyncTest;  // forward decl
-struct EventSub
+struct EventSub : public event_array_codecs::EventProcessor
 {
   void callback(EventArrayConstPtr msg);
+  // ------ inherited from event processor, not used
+  void eventCD(uint64_t, uint16_t, uint16_t, uint8_t) {}
+  void eventExtTrigger(uint64_t, uint8_t, uint8_t) {}
+  void finished() {}
+  void rawData(const char *, size_t) {}
+  // --------- end of inherited
   // ----- variables --------
   rclcpp::Subscription<EventArray>::SharedPtr sub_;
-  std::unordered_map<std::string, std::shared_ptr<event_array_codecs::Decoder>> decoders_;
+  event_array_codecs::DecoderFactory<EventSub> decoderFactory_;
   uint64_t lastHeaderStamp_{0};
   uint64_t lastSensorTime_{0};
   SyncTest * syncTest_{0};
@@ -116,20 +122,14 @@ void EventSub::callback(EventArrayConstPtr msg)
 {
   lastHeaderStamp_ = rclcpp::Time(msg->header.stamp).nanoseconds();
   if (!msg->events.empty()) {
-    auto decIt = decoders_.find(msg->encoding);
-    if (decIt == decoders_.end()) {
-      auto dec = event_array_codecs::Decoder::newInstance(msg->encoding);
-      if (dec) {
-        decIt = decoders_.insert({msg->encoding, dec}).first;
-      } else {
-        printf("unsupported encoding: %s\n", msg->encoding.c_str());
-        return;
-      }
+    auto decoder = decoderFactory_.getInstance(msg->encoding);
+    if (!decoder) {
+      printf("unsupported encoding: %s\n", msg->encoding.c_str());
+      return;
     }
-    auto & decoder = *(decIt->second);
-    decoder.setTimeBase(msg->time_base);
+    decoder->setTimeBase(msg->time_base);
     uint64_t t_sensor;
-    if (decoder.findFirstSensorTime(&msg->events[0], msg->events.size(), &t_sensor)) {
+    if (decoder->findFirstSensorTime(&msg->events[0], msg->events.size(), &t_sensor)) {
       syncTest_->updateStats(
         id_, rclcpp::Time(msg->header.stamp).nanoseconds(), msg->time_base, t_sensor);
       lastSensorTime_ = t_sensor;

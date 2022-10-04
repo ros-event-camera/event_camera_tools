@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <event_array_codecs/event_processor.h>
 #include <inttypes.h>
 #include <unistd.h>
@@ -71,19 +72,13 @@ public:
     printf("time base: %8" PRIu64 "\n", msg->time_base);
     printf("seqno: %8" PRIu64 "\n", msg->seq);
     printf("---\n");
-    auto decIt = decoders_.find(msg->encoding);
-    if (decIt == decoders_.end()) {
-      auto dec = Decoder::newInstance(msg->encoding);
-      if (dec) {
-        decIt = decoders_.insert({msg->encoding, dec}).first;
-      } else {
-        printf("unsupported encoding: %s\n", msg->encoding.c_str());
-        return;
-      }
+    auto decoder = decoderFactory_.getInstance(msg->encoding);
+    if (!decoder) {
+      printf("unsupported encoding: %s\n", msg->encoding.c_str());
+      return;
     }
-    auto & decoder = *(decIt->second);
-    decoder.setTimeBase(msg->time_base);
-    decoder.decode(&msg->events[0], msg->events.size(), this);
+    decoder->setTimeBase(msg->time_base);
+    decoder->decode(&msg->events[0], msg->events.size(), this);
   }
   const size_t * getNumCDEvents() { return (numCDEvents_); }
   const size_t * getNumTrigEvents() { return (numTrigEvents_); }
@@ -92,7 +87,7 @@ public:
 
 private:
   // ---------- variables
-  std::unordered_map<std::string, std::shared_ptr<Decoder>> decoders_;
+  event_array_codecs::DecoderFactory<Echo> decoderFactory_;
   size_t numCDEvents_[2]{0, 0};
   size_t numTrigEvents_[2]{0, 0};
   uint64_t cdStamps_[2]{0, 0};

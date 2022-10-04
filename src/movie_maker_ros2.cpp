@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <unistd.h>
 
 #include <event_array_msgs/msg/event_array.hpp>
@@ -38,7 +39,7 @@ void usage()
 static size_t process_bag(const std::string & inFile, const std::string & topic, const double fps)
 {
   size_t numBytes(0);
-  std::shared_ptr<event_array_codecs::Decoder> decoder;
+  event_array_codecs::DecoderFactory<event_array_tools::MovieMaker> decoderFactory;
   rosbag2_cpp::Reader reader;
   reader.open(inFile);
   rclcpp::Serialization<EventArray> serialization;
@@ -51,18 +52,18 @@ static size_t process_bag(const std::string & inFile, const std::string & topic,
       rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
       EventArray m;
       serialization.deserialize_message(&serializedMsg, &m);
-      numBytes += m.events.size();
-      if (!decoder) {
-        decoder = event_array_codecs::Decoder::newInstance(m.encoding);
+      if (numBytes == 0) {
         maker.resetImage(m.width, m.height);
         t0 = m.header.stamp;
       }
+      auto decoder = decoderFactory.getInstance(m.encoding);
       if (!decoder) {
         std::cout << "unknown encoding: " << m.encoding << std::endl;
         continue;
       }
       decoder->setTimeBase(m.time_base);
       decoder->decode(&(m.events[0]), m.events.size(), &maker);
+      numBytes += m.events.size();
     }
   }
   return (numBytes);
