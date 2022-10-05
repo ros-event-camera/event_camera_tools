@@ -17,6 +17,7 @@
 #define EVENT_ARRAY_TOOLS__SYNC_TEST_ROS1_H_
 
 #include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <event_array_codecs/event_processor.h>
 #include <event_array_msgs/EventArray.h>
 #include <ros/ros.h>
@@ -36,7 +37,7 @@ struct EventSub
   void callback(EventArrayConstPtr events);
   // ----- variables --------
   ros::Subscriber sub_;
-  std::unordered_map<std::string, std::shared_ptr<event_array_codecs::Decoder>> decoders_;
+  event_array_codecs::DecoderFactory<> decoderFactory_;
   uint64_t lastHeaderStamp_{0};
   uint64_t lastSensorTime_{0};
   SyncTest * syncTest_{0};

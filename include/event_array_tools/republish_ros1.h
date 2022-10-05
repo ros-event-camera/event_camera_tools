@@ -17,6 +17,7 @@
 #define EVENT_ARRAY_TOOLS__REPUBLISH_ROS1_H_
 
 #include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <event_array_codecs/event_processor.h>
 #include <event_array_msgs/EventArray.h>
 #include <event_array_tools/check_endian.h>
@@ -51,19 +52,12 @@ public:
 
   inline void decode(const EventArray::ConstPtr & msg)
   {
-    // decode message
-    auto decIt = decoders_.find(msg->encoding);
-    if (decIt == decoders_.end()) {
-      auto dec = Decoder::newInstance(msg->encoding);
-      if (dec) {
-        decIt = decoders_.insert({msg->encoding, dec}).first;
-      } else {
-        printf("unsupported encoding: %s\n", msg->encoding.c_str());
-        return;
-      }
+    auto decoder = decoderFactory_.getInstance(msg->encoding);
+    if (!decoder) {
+      printf("unsupported encoding: %s\n", msg->encoding.c_str());
+      return;
     }
-    auto & decoder = *(decIt->second);
-    decoder.decode(&msg->events[0], msg->events.size(), &messageMaker_);
+    decoder->decode(&msg->events[0], msg->events.size(), &messageMaker_);
   }
 
   void eventMsg(EventArray::ConstPtr msg)
@@ -100,7 +94,7 @@ public:
   ros::Publisher eventPub_;
   ros::Publisher triggerPub_;
 
-  std::unordered_map<std::string, std::shared_ptr<Decoder>> decoders_;
+  event_array_codecs::DecoderFactory<MessageMaker<MsgType>> decoderFactory_;
   MessageMaker<MsgType> messageMaker_;
 };
 }  // namespace event_array_tools

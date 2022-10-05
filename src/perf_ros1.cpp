@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <event_array_codecs/event_processor.h>
 #include <event_array_msgs/EventArray.h>
 #include <ros/ros.h>
@@ -60,19 +61,13 @@ public:
 
   void eventMsg(const EventArray::ConstPtr & msg)
   {
-    auto decIt = decoders_.find(msg->encoding);
-    if (decIt == decoders_.end()) {
-      auto dec = Decoder::newInstance(msg->encoding);
-      if (dec) {
-        decIt = decoders_.insert({msg->encoding, dec}).first;
-      } else {
-        printf("unsupported encoding: %s\n", msg->encoding.c_str());
-        return;
-      }
+    auto decoder = decoderFactory_.getInstance(msg->encoding);
+    if (!decoder) {
+      printf("unsupported encoding: %s\n", msg->encoding.c_str());
+      return;
     }
-    auto & decoder = *(decIt->second);
-    decoder.setTimeBase(msg->time_base);
-    decoder.decode(&msg->events[0], msg->events.size(), this);
+    decoder->setTimeBase(msg->time_base);
+    decoder->decode(&msg->events[0], msg->events.size(), this);
     numMsgs_++;
     if (lastSeq_ == 0) {
       lastSeq_ = msg->seq - 1;
@@ -122,7 +117,7 @@ public:
   // ------------ variables
   ros::NodeHandle nh_;
   ros::Subscriber sub_;
-  std::unordered_map<std::string, std::shared_ptr<Decoder>> decoders_;
+  event_array_codecs::DecoderFactory<Perf> decoderFactory_;
   ros::Timer timer_;
   size_t numMsgs_{0};
   size_t cdEvents_[2]{0, 0};  // contrast change detected

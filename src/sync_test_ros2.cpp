@@ -34,18 +34,12 @@ using EventArray = event_array_msgs::msg::EventArray;
 using EventArrayConstPtr = EventArray::ConstSharedPtr;
 
 class SyncTest;  // forward decl
-struct EventSub : public event_array_codecs::EventProcessor
+struct EventSub
 {
   void callback(EventArrayConstPtr msg);
-  // ------ inherited from event processor, not used
-  void eventCD(uint64_t, uint16_t, uint16_t, uint8_t) {}
-  void eventExtTrigger(uint64_t, uint8_t, uint8_t) {}
-  void finished() {}
-  void rawData(const char *, size_t) {}
-  // --------- end of inherited
   // ----- variables --------
   rclcpp::Subscription<EventArray>::SharedPtr sub_;
-  event_array_codecs::DecoderFactory<EventSub> decoderFactory_;
+  event_array_codecs::DecoderFactory<> decoderFactory_;
   uint64_t lastHeaderStamp_{0};
   uint64_t lastSensorTime_{0};
   SyncTest * syncTest_{0};

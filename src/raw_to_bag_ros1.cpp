@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <event_array_msgs/EventArray.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -53,7 +54,7 @@ public:
     msg_.encoding = "evt3";
     msg_.is_bigendian = check_endian::isBigEndian();
     msg_.seq = 0;
-    decoder_ = event_array_codecs::Decoder::newInstance("evt3");
+    decoder_ = decoderFactory_.getInstance("evt3");
     if (!decoder_) {
       std::cerr << "evt3 not supported for decoding!" << std::endl;
       throw(std::runtime_error("evt3 not supported!"));
@@ -91,7 +92,9 @@ public:
   EventArray msg_;
   std::string topic_;
   size_t numEvents_[2]{0, 0};
-  std::shared_ptr<event_array_codecs::Decoder> decoder_;
+  event_array_codecs::DecoderFactory<> decoderFactory_;
+  std::shared_ptr<event_array_codecs::Decoder<>> decoder_;
+
   bool hasValidRosTime_{false};
   ros::Time startRosTime_;
   uint64_t startSensorTime_{0};

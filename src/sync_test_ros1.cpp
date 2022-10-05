@@ -27,20 +27,14 @@ void EventSub::callback(EventArrayConstPtr msg)
 {
   lastHeaderStamp_ = ros::Time(msg->header.stamp).toNSec();
   if (!msg->events.empty()) {
-    auto decIt = decoders_.find(msg->encoding);
-    if (decIt == decoders_.end()) {
-      auto dec = event_array_codecs::Decoder::newInstance(msg->encoding);
-      if (dec) {
-        decIt = decoders_.insert({msg->encoding, dec}).first;
-      } else {
-        printf("unsupported encoding: %s\n", msg->encoding.c_str());
-        return;
-      }
+    auto decoder = decoderFactory_.getInstance(msg->encoding);
+    if (!decoder) {
+      printf("unsupported encoding: %s\n", msg->encoding.c_str());
+      return;
     }
-    auto & decoder = *(decIt->second);
-    decoder.setTimeBase(msg->time_base);
+    decoder->setTimeBase(msg->time_base);
     uint64_t t_sensor;
-    if (decoder.findFirstSensorTime(&msg->events[0], msg->events.size(), &t_sensor)) {
+    if (decoder->findFirstSensorTime(&msg->events[0], msg->events.size(), &t_sensor)) {
       syncTest_->updateStats(id_, ros::Time(msg->header.stamp).toNSec(), msg->time_base, t_sensor);
       lastSensorTime_ = t_sensor;
     }

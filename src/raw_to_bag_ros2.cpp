@@ -45,16 +45,9 @@ namespace event_array_tools
 {
 using event_array_msgs::msg::EventArray;
 
-class MessageUpdaterEvt3 : public event_array_codecs::EventProcessor
+class MessageUpdaterEvt3
 {
 public:
-  // ------ inherited from event processor, not used
-  void eventCD(uint64_t, uint16_t, uint16_t, uint8_t) {}
-  void eventExtTrigger(uint64_t, uint8_t, uint8_t) {}
-  void finished() {}
-  void rawData(const char *, size_t) {}
-  // --------- end of inherited
-
   explicit MessageUpdaterEvt3(
     const std::string & bagName, const std::string & topic, const std::string & frameId,
     uint32_t width, uint32_t height)
@@ -114,8 +107,8 @@ private:
   EventArray msg_;
   std::string topic_;
   size_t numEvents_[2]{0, 0};
-  event_array_codecs::DecoderFactory<MessageUpdaterEvt3> decoderFactory_;
-  std::shared_ptr<event_array_codecs::Decoder<MessageUpdaterEvt3>> decoder_;
+  event_array_codecs::DecoderFactory<> decoderFactory_;
+  std::shared_ptr<event_array_codecs::Decoder<>> decoder_;
   bool hasValidRosTime_{false};
   rclcpp::Time startRosTime_;
   uint64_t startSensorTime_{0};

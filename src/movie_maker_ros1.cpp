@@ -14,6 +14,7 @@
 // limitations under the License.
 
 #include <event_array_codecs/decoder.h>
+#include <event_array_codecs/decoder_factory.h>
 #include <event_array_msgs/EventArray.h>
 #include <ros/ros.h>
 #include <rosbag/bag.h>
@@ -36,7 +37,7 @@ void usage()
 static size_t process_bag(const std::string & inFile, const std::string & topic, const double fps)
 {
   size_t numBytes(0);
-  std::shared_ptr<event_array_codecs::Decoder> decoder;
+  event_array_codecs::DecoderFactory<event_array_tools::MovieMaker> decoderFactory;
   rosbag::Bag bag;
   std::cout << "reading from bag: " << inFile << " topic: " << topic << std::endl;
   bag.open(inFile, rosbag::bagmode::Read);
@@ -48,18 +49,18 @@ static size_t process_bag(const std::string & inFile, const std::string & topic,
     if (m.getTopic() == topic) {
       EventArray::ConstPtr ea = m.instantiate<EventArray>();
       if (ea) {
-        numBytes += ea->events.size();
-        if (!decoder) {
-          decoder = event_array_codecs::Decoder::newInstance(ea->encoding);
+        if (numBytes == 0) {
           maker.resetImage(ea->width, ea->height);
           t0 = ea->header.stamp;
         }
+        auto decoder = decoderFactory.getInstance(ea->encoding);
         if (!decoder) {
           std::cout << "unknown encoding: " << ea->encoding << std::endl;
           continue;
         }
         decoder->setTimeBase(ea->time_base);
         decoder->decode(&(ea->events[0]), ea->events.size(), &maker);
+        numBytes += ea->events.size();
       }
     }
   }
