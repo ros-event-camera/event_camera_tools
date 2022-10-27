@@ -53,7 +53,7 @@ static size_t process_bag(const std::string & inFile, const std::string & topic,
           maker.resetImage(ea->width, ea->height);
           t0 = ea->header.stamp;
         }
-        auto decoder = decoderFactory.getInstance(ea->encoding);
+        auto decoder = decoderFactory.getInstance(ea->encoding, ea->width, ea->height);
         if (!decoder) {
           std::cout << "unknown encoding: " << ea->encoding << std::endl;
           continue;

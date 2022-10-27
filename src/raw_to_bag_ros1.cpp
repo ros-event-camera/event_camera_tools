@@ -54,7 +54,7 @@ public:
     msg_.encoding = "evt3";
     msg_.is_bigendian = check_endian::isBigEndian();
     msg_.seq = 0;
-    decoder_ = decoderFactory_.getInstance("evt3");
+    decoder_ = decoderFactory_.getInstance("evt3", width, height);
     if (!decoder_) {
       std::cerr << "evt3 not supported for decoding!" << std::endl;
       throw(std::runtime_error("evt3 not supported!"));
@@ -93,7 +93,7 @@ public:
   std::string topic_;
   size_t numEvents_[2]{0, 0};
   event_array_codecs::DecoderFactory<> decoderFactory_;
-  std::shared_ptr<event_array_codecs::Decoder<>> decoder_;
+  event_array_codecs::Decoder<> * decoder_;
 
   bool hasValidRosTime_{false};
   ros::Time startRosTime_;

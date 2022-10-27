@@ -27,7 +27,7 @@ void EventSub::callback(EventArrayConstPtr msg)
 {
   lastHeaderStamp_ = ros::Time(msg->header.stamp).toNSec();
   if (!msg->events.empty()) {
-    auto decoder = decoderFactory_.getInstance(msg->encoding);
+    auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
     if (!decoder) {
       printf("unsupported encoding: %s\n", msg->encoding.c_str());
       return;

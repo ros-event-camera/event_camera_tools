@@ -52,7 +52,7 @@ public:
 
   inline void decode(const EventArray::ConstPtr & msg)
   {
-    auto decoder = decoderFactory_.getInstance(msg->encoding);
+    auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
     if (!decoder) {
       printf("unsupported encoding: %s\n", msg->encoding.c_str());
       return;

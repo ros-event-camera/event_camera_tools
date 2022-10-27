@@ -70,7 +70,7 @@ public:
     printf("time base: %8" PRIu64 "\n", msg->time_base);
     printf("seqno: %8" PRIu64 "\n", msg->seq);
     printf("---\n");
-    auto decoder = decoderFactory_.getInstance(msg->encoding);
+    auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
     if (!decoder) {
       printf("unsupported encoding: %s\n", msg->encoding.c_str());
       return;
