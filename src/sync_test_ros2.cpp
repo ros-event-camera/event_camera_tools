@@ -75,7 +75,8 @@ public:
     (void)t_stamp;
     (void)t_base;
     count_[id]++;
-    int64_t dt = t_sensor - eventSub_[(id + 1) % 2].lastSensorTime_;
+    int64_t dt = (id == 0) ? (t_sensor - eventSub_[1].lastSensorTime_)
+                           : (-(t_sensor - eventSub_[0].lastSensorTime_));
     maxDiff_ = std::max(maxDiff_, dt);
     minDiff_ = std::min(minDiff_, dt);
     sumOfDiffs_ += dt * 1e-9;
