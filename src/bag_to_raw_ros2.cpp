@@ -92,10 +92,8 @@ static size_t process_bag(
         rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
         EventArray m;
         serialization.deserialize_message(&serializedMsg, &m);
-        if (m.seq >= 45547) {
-          numBytes +=
-            write(out, &m.events[0], m.events.size(), m.time_base, m.encoding, &last_evt_stamp);
-        }
+        numBytes +=
+          write(out, &m.events[0], m.events.size(), m.time_base, m.encoding, &last_evt_stamp);
         numMessages++;
       }
     }
