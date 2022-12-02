@@ -106,7 +106,10 @@ All tools are provided in ROS and ROS2 (syntax below is for ROS):
   size determines the size and number of ROS messages in the bag.
 - ``rosrun event_array_tools movie_maker -f <fps> -b <bag_name> -t <topic>``:
   produces sequence of frame images.
-  
+- ``rosrun event_array_tools legacy_to_bag -t <topic> -b <input_bag_file> -o <output_bag_file>``
+  ROS1 only: Converts bags with DVS or Prophesee messages to evt3
+  event_array_msgs.
+
 ## License
 
 This software is issued under the Apache License Version 2.0.
