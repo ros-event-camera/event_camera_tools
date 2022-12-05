@@ -73,6 +73,10 @@ static size_t process_bag(
   rosbag::Bag outBag;
   outBag.open(outBagName, rosbag::bagmode::Write);
   auto encoder = event_array_codecs::Encoder::newInstance("evt3");
+  if (!encoder) {
+    std::cerr << "evt3 codec not supported by encoder!" << std::endl;
+    throw(std::runtime_error("evt3 unsupported!"));
+  }
   rosbag::View view(inBag, rosbag::TopicQuery({topic}));
   size_t numMessages(0);
   size_t numEvents(0);
