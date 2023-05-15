@@ -10,7 +10,7 @@ under ROS and ROS2. These messages are produced by the
 Currently tested on Ubuntu 20.04 under ROS Noetic and ROS2 Galactic.
 
 ## How to build
-Create a workspace (``event_array_tools_ws``), clone this repo, and use ``wstool``
+Create a workspace (``event_array_tools_ws``), clone this repo, and use ``vcs``
 to pull in the remaining dependencies:
 
 ```
@@ -18,10 +18,9 @@ pkg=event_array_tools
 mkdir -p ~/${pkg}_ws/src
 cd ~/${pkg}_ws
 git clone https://github.com/berndpfrommer/${pkg}.git src/${pkg}
-wstool init src src/${pkg}/${pkg}.rosinstall
-# to update an existing space:
-# wstool merge -t src src/${pkg}/${pkg}.rosinstall
-# wstool update -t src
+cd src
+vcs import < ${pkg}/${pkg}.repos
+cd ..
 ```
 
 ### configure and build on ROS1:

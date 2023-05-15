@@ -92,9 +92,15 @@ public:
       startRosTime_ + rclcpp::Duration(std::chrono::nanoseconds(sensorTime - startSensorTime_));
     msg_.events.clear();  // remove marker
     msg_.events.insert(msg_.events.end(), data, data + len);
-    rclcpp::SerializedMessage serialized_msg;
+
     rclcpp::Serialization<EventArray> serialization;
+#ifdef USE_OLD_ROSBAG_API
+    rclcpp::SerializedMessage serialized_msg;
     serialization.serialize_message(&msg_, &serialized_msg);
+#else
+    auto serialized_msg = std::make_shared<rclcpp::SerializedMessage>();
+    serialization.serialize_message(&msg_, serialized_msg.get());
+#endif
     writer_->write(
       serialized_msg, topic_, "event_array_msgs/msg/EventArray", rclcpp::Time(msg_.header.stamp));
     msg_.events.clear();  // mark as new
