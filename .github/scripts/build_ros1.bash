@@ -1,3 +1,7 @@
+#!/bin/bash
+# set up ROS
+distros=('melodic' 'noetic')
+pkg=$1
 #
 # probe for the ROS1 distro
 #

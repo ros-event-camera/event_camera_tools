@@ -1,0 +1,17 @@
+repositories:
+  event_array_msgs:
+    type: git
+    url: https://github.com/berndpfrommer/event_array_msgs.git
+    version: master
+  dvs_msgs:
+    type: git
+    url: https://github.com/berndpfrommer/dvs_msgs.git
+    version: master
+  prophesee_event_msgs:
+    type: git
+    url: https://github.com/berndpfrommer/prophesee_event_msgs.git
+    version: master
+  event_array_codecs:
+    type: git
+    url: https://github.com/berndpfrommer/event_array_codecs.git
+    version: master
