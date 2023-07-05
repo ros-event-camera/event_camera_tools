@@ -1,13 +1,13 @@
 # event_array_tools
 
 This repository holds ROS/ROS2 tools for displaying and converting
-[event_array_msgs](https://github.com/berndpfrommer/event_array_msgs)
+[event_array_msgs](https://github.com/ros-event-camera/event_array_msgs)
 under ROS and ROS2. These messages are produced by the
-[metavision_ros_driver](https://github.com/berndpfrommer/metavision_ros_driver).
+[metavision_driver](https://github.com/ros-event-camera/metavision_ros_driver).
 
 ## Supported platforms
 
-Currently tested on Ubuntu 20.04 under ROS Noetic and ROS2 Galactic.
+Currently tested on Ubuntu 20.04/22.04 under ROS Noetic and ROS2 Galactic/Humble.
 
 ## How to build
 Create a workspace (``event_array_tools_ws``), clone this repo, and use ``vcs``
@@ -17,7 +17,7 @@ to pull in the remaining dependencies:
 pkg=event_array_tools
 mkdir -p ~/${pkg}_ws/src
 cd ~/${pkg}_ws
-git clone https://github.com/berndpfrommer/${pkg}.git src/${pkg}
+git clone https://github.com/ros-event-camera/${pkg}.git src/${pkg}
 cd src
 vcs import < ${pkg}/${pkg}.repos
 cd ..
