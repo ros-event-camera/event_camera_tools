@@ -28,7 +28,7 @@
 
 #include "event_camera_tools/movie_maker.h"
 
-using event_camera_msgs::msg::EventPacket;
+using event_camera_codecs::EventPacket;
 
 void usage()
 {

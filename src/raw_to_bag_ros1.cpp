@@ -37,7 +37,7 @@ void usage()
 
 namespace event_camera_tools
 {
-using event_camera_msgs::EventPacket;
+using event_camera_codecs::EventPacket;
 
 class MessageUpdaterEvt3
 {
@@ -92,8 +92,8 @@ public:
   EventPacket msg_;
   std::string topic_;
   size_t numEvents_[2]{0, 0};
-  event_camera_codecs::DecoderFactory<> decoderFactory_;
-  event_camera_codecs::Decoder<> * decoder_;
+  event_camera_codecs::DecoderFactory<EventPacket> decoderFactory_;
+  event_camera_codecs::Decoder<EventPacket> * decoder_;
 
   bool hasValidRosTime_{false};
   ros::Time startRosTime_;

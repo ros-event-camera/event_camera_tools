@@ -43,7 +43,7 @@ void usage()
 
 namespace event_camera_tools
 {
-using event_camera_msgs::msg::EventPacket;
+using event_camera_codecs::EventPacket;
 
 class MessageUpdaterEvt3
 {

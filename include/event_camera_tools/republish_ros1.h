@@ -33,7 +33,7 @@
 namespace event_camera_tools
 {
 using event_camera_codecs::Decoder;
-using event_camera_msgs::EventPacket;
+using event_camera_codecs::EventPacket;
 
 template <typename MsgType>
 class Republish
@@ -94,7 +94,7 @@ public:
   ros::Publisher eventPub_;
   ros::Publisher triggerPub_;
 
-  event_camera_codecs::DecoderFactory<MessageMaker<MsgType>> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket, MessageMaker<MsgType>> decoderFactory_;
   MessageMaker<MsgType> messageMaker_;
 };
 }  // namespace event_camera_tools

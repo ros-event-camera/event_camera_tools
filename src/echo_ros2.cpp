@@ -36,7 +36,7 @@ void usage()
 }
 
 using event_camera_codecs::Decoder;
-using event_camera_msgs::msg::EventPacket;
+using event_camera_codecs::EventPacket;
 
 class Echo : public event_camera_codecs::EventProcessor
 {

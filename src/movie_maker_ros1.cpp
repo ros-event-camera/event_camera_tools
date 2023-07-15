@@ -26,7 +26,7 @@
 
 #include "event_camera_tools/movie_maker.h"
 
-using event_camera_msgs::EventPacket;
+using event_camera_codecs::EventPacket;
 
 void usage()
 {
@@ -37,7 +37,7 @@ void usage()
 static size_t process_bag(const std::string & inFile, const std::string & topic, const double fps)
 {
   size_t numBytes(0);
-  event_camera_codecs::DecoderFactory<event_camera_tools::MovieMaker> decoderFactory;
+  event_camera_codecs::DecoderFactory<EventPacket, event_camera_tools::MovieMaker> decoderFactory;
   rosbag::Bag bag;
   std::cout << "reading from bag: " << inFile << " topic: " << topic << std::endl;
   bag.open(inFile, rosbag::bagmode::Read);

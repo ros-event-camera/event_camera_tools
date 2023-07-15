@@ -34,7 +34,7 @@ void usage()
 }
 
 using event_camera_codecs::Decoder;
-using event_camera_msgs::EventPacket;
+using event_camera_codecs::EventPacket;
 
 class Echo : public event_camera_codecs::EventProcessor
 {
@@ -85,7 +85,7 @@ public:
 
 private:
   // ---------- variables
-  event_camera_codecs::DecoderFactory<Echo> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket, Echo> decoderFactory_;
   size_t numCDEvents_[2]{0, 0};
   size_t numTrigEvents_[2]{0, 0};
   uint64_t cdStamps_[2]{0, 0};

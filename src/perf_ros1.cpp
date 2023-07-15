@@ -31,7 +31,7 @@ void usage()
 }
 
 using event_camera_codecs::Decoder;
-using event_camera_msgs::EventPacket;
+using event_camera_codecs::EventPacket;
 
 class Perf : public event_camera_codecs::EventProcessor
 {
@@ -117,7 +117,7 @@ public:
   // ------------ variables
   ros::NodeHandle nh_;
   ros::Subscriber sub_;
-  event_camera_codecs::DecoderFactory<Perf> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket, Perf> decoderFactory_;
   ros::Timer timer_;
   size_t numMsgs_{0};
   size_t cdEvents_[2]{0, 0};  // contrast change detected

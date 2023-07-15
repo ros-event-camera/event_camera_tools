@@ -28,7 +28,7 @@
 
 namespace event_camera_tools
 {
-using EventPacket = event_camera_msgs::EventPacket;
+using EventPacket = event_camera_codecs::EventPacket;
 using EventPacketConstPtr = EventPacket::ConstPtr;
 
 class SyncTest;  // forward decl
@@ -37,7 +37,7 @@ struct EventSub
   void callback(EventPacketConstPtr events);
   // ----- variables --------
   ros::Subscriber sub_;
-  event_camera_codecs::DecoderFactory<> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket> decoderFactory_;
   uint64_t lastHeaderStamp_{0};
   uint64_t lastSensorTime_{0};
   SyncTest * syncTest_{0};
