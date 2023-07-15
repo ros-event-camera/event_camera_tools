@@ -24,10 +24,9 @@ find_package(catkin REQUIRED COMPONENTS
   nodelet
   dvs_msgs
   prophesee_event_msgs
-  event_array_msgs
-  event_array_codecs
-  rosbag
-  )
+  event_camera_msgs
+  event_camera_codecs
+  rosbag)
 
 find_package(OpenCV REQUIRED)
 
@@ -36,8 +35,7 @@ catkin_package()
 
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
-)
+  ${catkin_INCLUDE_DIRS})
 
 # --------- sync test
 add_executable(sync_test src/sync_test_ros1.cpp)
@@ -81,17 +79,14 @@ target_link_libraries(republish_node ${catkin_LIBRARIES})
 install(TARGETS republish_nodelet echo perf bag_to_raw movie_maker republish_node legacy_to_bag
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-  )
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
 
 install(FILES nodelet_plugins.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
 install(DIRECTORY launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-  FILES_MATCHING PATTERN "*.launch"
-  )
+  FILES_MATCHING PATTERN "*.launch")
 
 #############
 ## Testing ##

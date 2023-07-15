@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "event_array_tools/sync_test_ros1.h"
+#include "event_camera_tools/sync_test_ros1.h"
 
 void usage()
 {
@@ -21,9 +21,9 @@ void usage()
   std::cout << "sync_test <event_topic_cam_0> <event_topic_cam_1>" << std::endl;
 }
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-void EventSub::callback(EventArrayConstPtr msg)
+void EventSub::callback(EventPacketConstPtr msg)
 {
   lastHeaderStamp_ = ros::Time(msg->header.stamp).toNSec();
   if (!msg->events.empty()) {
@@ -87,7 +87,7 @@ void SyncTest::resetVariables()
   count_[0] = count_[1] = 0;
   sumOfDiffs_ = 0;
 }
-}  // namespace event_array_tools
+}  // namespace event_camera_tools
 
 int main(int argc, char ** argv)
 {
@@ -106,7 +106,7 @@ int main(int argc, char ** argv)
       exit(-1);
   }
   try {
-    event_array_tools::SyncTest node(topic_0, topic_1, pnh);
+    event_camera_tools::SyncTest node(topic_0, topic_1, pnh);
     ros::spin();
   } catch (const std::exception & e) {
     ROS_ERROR("%s: %s", pnh.getNamespace().c_str(), e.what());

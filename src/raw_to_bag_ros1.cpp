@@ -13,9 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <unistd.h>
@@ -25,7 +25,7 @@
 #include <iomanip>
 #include <iostream>
 
-#include "event_array_tools/check_endian.h"
+#include "event_camera_tools/check_endian.h"
 
 void usage()
 {
@@ -35,9 +35,9 @@ void usage()
             << std::endl;
 }
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-using event_array_msgs::EventArray;
+using event_camera_msgs::EventPacket;
 
 class MessageUpdaterEvt3
 {
@@ -89,11 +89,11 @@ public:
   const size_t * getNumEvents() const { return (numEvents_); }
   // ---------- variables
   rosbag::Bag bag_;
-  EventArray msg_;
+  EventPacket msg_;
   std::string topic_;
   size_t numEvents_[2]{0, 0};
-  event_array_codecs::DecoderFactory<> decoderFactory_;
-  event_array_codecs::Decoder<> * decoder_;
+  event_camera_codecs::DecoderFactory<> decoderFactory_;
+  event_camera_codecs::Decoder<> * decoder_;
 
   bool hasValidRosTime_{false};
   ros::Time startRosTime_;
@@ -109,7 +109,7 @@ static void skip_header(std::fstream & in)
     std::getline(in, line);
   }
 }
-}  // namespace event_array_tools
+}  // namespace event_camera_tools
 
 int main(int argc, char ** argv)
 {
@@ -160,7 +160,7 @@ int main(int argc, char ** argv)
   auto start = std::chrono::high_resolution_clock::now();
 
   decltype(start) final;
-  event_array_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
+  event_camera_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
 
   std::fstream in;
   in.open(inFile, std::ios::in | std::ios::binary);
@@ -168,7 +168,7 @@ int main(int argc, char ** argv)
     std::cerr << "cannot open file: " << inFile << std::endl;
     return (-1);
   }
-  event_array_tools::skip_header(in);
+  event_camera_tools::skip_header(in);
   std::vector<char> buffer(bufSize);
   size_t bytesRead(0);
   while (true) {

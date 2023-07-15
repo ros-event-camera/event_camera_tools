@@ -13,9 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -24,9 +24,9 @@
 #include <filesystem>
 #include <memory>
 
-#include "event_array_tools/movie_maker.h"
+#include "event_camera_tools/movie_maker.h"
 
-using event_array_msgs::EventArray;
+using event_camera_msgs::EventPacket;
 
 void usage()
 {
@@ -37,17 +37,17 @@ void usage()
 static size_t process_bag(const std::string & inFile, const std::string & topic, const double fps)
 {
   size_t numBytes(0);
-  event_array_codecs::DecoderFactory<event_array_tools::MovieMaker> decoderFactory;
+  event_camera_codecs::DecoderFactory<event_camera_tools::MovieMaker> decoderFactory;
   rosbag::Bag bag;
   std::cout << "reading from bag: " << inFile << " topic: " << topic << std::endl;
   bag.open(inFile, rosbag::bagmode::Read);
   rosbag::View view(bag, rosbag::TopicQuery({topic}));
-  event_array_tools::MovieMaker maker;
+  event_camera_tools::MovieMaker maker;
   maker.setFramePeriod(1.0 / fps);
   ros::Time t0;
   for (const rosbag::MessageInstance & m : view) {
     if (m.getTopic() == topic) {
-      EventArray::ConstPtr ea = m.instantiate<EventArray>();
+      EventPacket::ConstPtr ea = m.instantiate<EventPacket>();
       if (ea) {
         if (numBytes == 0) {
           maker.resetImage(ea->width, ea->height);

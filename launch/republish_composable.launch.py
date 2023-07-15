@@ -34,11 +34,11 @@ def launch_setup(context, *args, **kwargs):
             executable='component_container',
             composable_node_descriptions=[
                 ComposableNode(
-                    package='event_array_tools',
-                    plugin='event_array_tools::RepublishComposable',
+                    package='event_camera_tools',
+                    plugin='event_camera_tools::RepublishComposable',
                     name=cam_name,
                     parameters=[
-                        {'output_message_type': 'event_array'}],
+                        {'output_message_type': 'event_packet'}],
                     remappings=[
                         ('~/input_events', cam_str + '/events'),
                         ('~/output_events', cam_str + '/republished_events'),

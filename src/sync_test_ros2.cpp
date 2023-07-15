@@ -13,10 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_codecs/event_processor.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_codecs/event_processor.h>
 
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
@@ -28,18 +28,18 @@ void usage()
   std::cout << "sync_test <event_topic_cam_0> <event_topic_cam_1>" << std::endl;
 }
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-using EventArray = event_array_msgs::msg::EventArray;
-using EventArrayConstPtr = EventArray::ConstSharedPtr;
+using EventPacket = event_camera_msgs::msg::EventPacket;
+using EventPacketConstPtr = EventPacket::ConstSharedPtr;
 
 class SyncTest;  // forward decl
 struct EventSub
 {
-  void callback(EventArrayConstPtr msg);
+  void callback(EventPacketConstPtr msg);
   // ----- variables --------
-  rclcpp::Subscription<EventArray>::SharedPtr sub_;
-  event_array_codecs::DecoderFactory<> decoderFactory_;
+  rclcpp::Subscription<EventPacket>::SharedPtr sub_;
+  event_camera_codecs::DecoderFactory<EventPacket> decoderFactory_;
   uint64_t lastHeaderStamp_{0};
   uint64_t lastSensorTime_{0};
   SyncTest * syncTest_{0};
@@ -64,9 +64,9 @@ public:
       [=]() { this->timerExpired(); });
 
     auto qos = rclcpp::QoS(rclcpp::KeepLast(1)).best_effort().durability_volatile();
-    eventSub_[0].sub_ = this->create_subscription<EventArray>(
+    eventSub_[0].sub_ = this->create_subscription<EventPacket>(
       topic_0, qos, std::bind(&EventSub::callback, &eventSub_[0], std::placeholders::_1));
-    eventSub_[1].sub_ = this->create_subscription<EventArray>(
+    eventSub_[1].sub_ = this->create_subscription<EventPacket>(
       topic_1, qos, std::bind(&EventSub::callback, &eventSub_[1], std::placeholders::_1));
   }
 
@@ -113,7 +113,7 @@ private:
 };
 
 // must define here because of reference to SyncTest class
-void EventSub::callback(EventArrayConstPtr msg)
+void EventSub::callback(EventPacketConstPtr msg)
 {
   lastHeaderStamp_ = rclcpp::Time(msg->header.stamp).nanoseconds();
   if (!msg->events.empty()) {
@@ -132,7 +132,7 @@ void EventSub::callback(EventArrayConstPtr msg)
   }
 }
 
-}  // namespace event_array_tools
+}  // namespace event_camera_tools
 
 int main(int argc, char ** argv)
 {
@@ -150,7 +150,7 @@ int main(int argc, char ** argv)
       exit(-1);
   }
   auto node =
-    std::make_shared<event_array_tools::SyncTest>(topic_0, topic_1, rclcpp::NodeOptions());
+    std::make_shared<event_camera_tools::SyncTest>(topic_0, topic_1, rclcpp::NodeOptions());
   rclcpp::spin(node);  // should not return
   rclcpp::shutdown();
   return (0);

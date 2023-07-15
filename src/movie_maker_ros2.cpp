@@ -13,11 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
 #include <unistd.h>
 
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <filesystem>
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
@@ -26,9 +26,9 @@
 #include <rosbag2_cpp/reader.hpp>
 #include <rosbag2_cpp/readers/sequential_reader.hpp>
 
-#include "event_array_tools/movie_maker.h"
+#include "event_camera_tools/movie_maker.h"
 
-using event_array_msgs::msg::EventArray;
+using event_camera_msgs::msg::EventPacket;
 
 void usage()
 {
@@ -39,18 +39,18 @@ void usage()
 static size_t process_bag(const std::string & inFile, const std::string & topic, const double fps)
 {
   size_t numBytes(0);
-  event_array_codecs::DecoderFactory<event_array_tools::MovieMaker> decoderFactory;
+  event_camera_codecs::DecoderFactory<EventPacket, event_camera_tools::MovieMaker> decoderFactory;
   rosbag2_cpp::Reader reader;
   reader.open(inFile);
-  rclcpp::Serialization<EventArray> serialization;
-  event_array_tools::MovieMaker maker;
+  rclcpp::Serialization<EventPacket> serialization;
+  event_camera_tools::MovieMaker maker;
   maker.setFramePeriod(1.0 / fps);
   rclcpp::Time t0;
   while (reader.has_next()) {
     auto msg = reader.read_next();
     if (msg->topic_name == topic) {
       rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
-      EventArray m;
+      EventPacket m;
       serialization.deserialize_message(&serializedMsg, &m);
       if (numBytes == 0) {
         maker.resetImage(m.width, m.height);

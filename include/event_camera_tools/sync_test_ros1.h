@@ -13,31 +13,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef EVENT_ARRAY_TOOLS__SYNC_TEST_ROS1_H_
-#define EVENT_ARRAY_TOOLS__SYNC_TEST_ROS1_H_
+#ifndef EVENT_CAMERA_TOOLS__SYNC_TEST_ROS1_H_
+#define EVENT_CAMERA_TOOLS__SYNC_TEST_ROS1_H_
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_codecs/event_processor.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_codecs/event_processor.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <ros/ros.h>
 
 #include <memory>
 #include <string>
 #include <unordered_map>
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-using EventArray = event_array_msgs::EventArray;
-using EventArrayConstPtr = EventArray::ConstPtr;
+using EventPacket = event_camera_msgs::EventPacket;
+using EventPacketConstPtr = EventPacket::ConstPtr;
 
 class SyncTest;  // forward decl
 struct EventSub
 {
-  void callback(EventArrayConstPtr events);
+  void callback(EventPacketConstPtr events);
   // ----- variables --------
   ros::Subscriber sub_;
-  event_array_codecs::DecoderFactory<> decoderFactory_;
+  event_camera_codecs::DecoderFactory<> decoderFactory_;
   uint64_t lastHeaderStamp_{0};
   uint64_t lastSensorTime_{0};
   SyncTest * syncTest_{0};
@@ -65,5 +65,5 @@ private:
   int64_t maxDiff_;
   int64_t minDiff_;
 };
-}  // namespace event_array_tools
-#endif  // EVENT_ARRAY_TOOLS__SYNC_TEST_ROS1_H_
+}  // namespace event_camera_tools
+#endif  // EVENT_CAMERA_TOOLS__SYNC_TEST_ROS1_H_

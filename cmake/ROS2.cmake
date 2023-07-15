@@ -39,10 +39,9 @@ set(ROS2_DEPENDENCIES
   "rclcpp_components"
   "dvs_msgs"
   "prophesee_event_msgs"
-  "event_array_msgs"
-  "event_array_codecs"
-  "rosbag2_cpp"
-)
+  "event_camera_msgs"
+  "event_camera_codecs"
+  "rosbag2_cpp")
 
 foreach(pkg ${ROS2_DEPENDENCIES})
   find_package(${pkg} REQUIRED)
@@ -75,7 +74,7 @@ target_link_libraries(movie_maker opencv_core opencv_imgcodecs)
 
 ament_auto_add_library(republish SHARED src/republish_composable.cpp)
 target_include_directories(republish PRIVATE include)
-rclcpp_components_register_nodes(republish "event_array_tools::RepublishComposable")
+rclcpp_components_register_nodes(republish "event_camera_tools::RepublishComposable")
 
 ament_auto_add_executable(republish_node  src/republish_node_ros2.cpp)
 
@@ -98,14 +97,12 @@ install(TARGETS
 
 install(TARGETS
   republish
-  DESTINATION lib
-)
+  DESTINATION lib)
 
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
-  FILES_MATCHING PATTERN "*.py"
-  )
+  FILES_MATCHING PATTERN "*.py")
 
 if(BUILD_TESTING)
   find_package(ament_cmake REQUIRED)

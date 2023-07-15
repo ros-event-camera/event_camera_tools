@@ -13,44 +13,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef EVENT_ARRAY_TOOLS__MESSAGE_MAKER_H_
-#define EVENT_ARRAY_TOOLS__MESSAGE_MAKER_H_
+#ifndef EVENT_CAMERA_TOOLS__MESSAGE_MAKER_H_
+#define EVENT_CAMERA_TOOLS__MESSAGE_MAKER_H_
 
-#include <event_array_codecs/encoder.h>
-#include <event_array_codecs/event_processor.h>
-#include <event_array_tools/check_endian.h>
+#include <event_camera_codecs/encoder.h>
+#include <event_camera_codecs/event_processor.h>
+#include <event_camera_tools/check_endian.h>
 #include <inttypes.h>
 
 #include <chrono>
 
 #ifdef USING_ROS_1
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <ros/ros.h>
 #else
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <rclcpp/rclcpp.hpp>
 #endif
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-using event_array_codecs::Decoder;
-using event_array_codecs::Encoder;
+using event_camera_codecs::Decoder;
+using event_camera_codecs::Encoder;
 #ifdef USING_ROS_1
-using event_array_msgs::EventArray;
+using event_camera_msgs::EventPacket;
 typedef ros::Time RosTimeType;
 #define GENERIC_ROS_DURATION(X) (ros::Duration().fromNSec(X))
 #define ROS_MSG_PTR Ptr
 #else
-using event_array_msgs::msg::EventArray;
+using event_camera_msgs::msg::EventPacket;
 typedef rclcpp::Time RosTimeType;
 #define ROS_MSG_PTR UniquePtr
 #define GENERIC_ROS_DURATION(X) (rclcpp::Duration(std::chrono::nanoseconds(X)))
 #endif
 
 template <typename MsgType>
-class MessageMaker : public event_array_codecs::EventProcessor
+class MessageMaker : public event_camera_codecs::EventProcessor
 {
-  using Encoder = event_array_codecs::Encoder;
+  using Encoder = event_camera_codecs::Encoder;
 
 public:
   explicit MessageMaker(const std::string & codec)
@@ -175,7 +175,7 @@ private:
 };
 
 template <>
-void MessageMaker<EventArray>::eventCD(
+void MessageMaker<EventPacket>::eventCD(
   uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity)
 {
   if (waitForSensorTime_) {
@@ -189,7 +189,7 @@ void MessageMaker<EventArray>::eventCD(
 }
 
 template <>
-void MessageMaker<EventArray>::eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id)
+void MessageMaker<EventPacket>::eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id)
 {
   if (waitForSensorTime_) {
     waitForSensorTime_ = false;
@@ -202,7 +202,7 @@ void MessageMaker<EventArray>::eventExtTrigger(uint64_t sensor_time, uint8_t edg
 }
 
 template <>
-void MessageMaker<EventArray>::initializeMoreEvent()
+void MessageMaker<EventPacket>::initializeMoreEvent()
 {
   eventEncoder_->setBuffer(&(eventMsg_->events));
   eventMsg_->is_bigendian = check_endian::isBigEndian();
@@ -210,7 +210,7 @@ void MessageMaker<EventArray>::initializeMoreEvent()
 }
 
 template <>
-void MessageMaker<EventArray>::initializeMoreTrigger()
+void MessageMaker<EventPacket>::initializeMoreTrigger()
 {
   triggerEncoder_->setBuffer(&(triggerMsg_->events));
   triggerMsg_->is_bigendian = check_endian::isBigEndian();
@@ -218,7 +218,7 @@ void MessageMaker<EventArray>::initializeMoreTrigger()
 }
 
 template <>
-EventArray::ROS_MSG_PTR MessageMaker<EventArray>::resetEventMessage()
+EventPacket::ROS_MSG_PTR MessageMaker<EventPacket>::resetEventMessage()
 {
   if (eventMsg_->events.empty()) {
     return (0);
@@ -237,7 +237,7 @@ EventArray::ROS_MSG_PTR MessageMaker<EventArray>::resetEventMessage()
 }
 
 template <>
-EventArray::ROS_MSG_PTR MessageMaker<EventArray>::resetTriggerMessage()
+EventPacket::ROS_MSG_PTR MessageMaker<EventPacket>::resetTriggerMessage()
 {
   if (triggerMsg_->events.empty()) {
     return (0);
@@ -255,5 +255,5 @@ EventArray::ROS_MSG_PTR MessageMaker<EventArray>::resetTriggerMessage()
   return (std::move(triggerMsg_));
 }
 
-}  // namespace event_array_tools
-#endif  // EVENT_ARRAY_TOOLS__MESSAGE_MAKER_H_
+}  // namespace event_camera_tools
+#endif  // EVENT_CAMERA_TOOLS__MESSAGE_MAKER_H_

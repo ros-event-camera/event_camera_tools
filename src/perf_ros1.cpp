@@ -13,10 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_codecs/event_processor.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_codecs/event_processor.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <ros/ros.h>
 #include <unistd.h>
 
@@ -30,10 +30,10 @@ void usage()
   std::cout << "perf <ros_topic>" << std::endl;
 }
 
-using event_array_codecs::Decoder;
-using event_array_msgs::EventArray;
+using event_camera_codecs::Decoder;
+using event_camera_msgs::EventPacket;
 
-class Perf : public event_array_codecs::EventProcessor
+class Perf : public event_camera_codecs::EventProcessor
 {
 public:
   explicit Perf(const ros::NodeHandle & nh, const std::string & topic) : nh_(nh)
@@ -59,7 +59,7 @@ public:
   void rawData(const char *, size_t) override {}
   // -------- end of inherited
 
-  void eventMsg(const EventArray::ConstPtr & msg)
+  void eventMsg(const EventPacket::ConstPtr & msg)
   {
     auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
     if (!decoder) {
@@ -117,7 +117,7 @@ public:
   // ------------ variables
   ros::NodeHandle nh_;
   ros::Subscriber sub_;
-  event_array_codecs::DecoderFactory<Perf> decoderFactory_;
+  event_camera_codecs::DecoderFactory<Perf> decoderFactory_;
   ros::Timer timer_;
   size_t numMsgs_{0};
   size_t cdEvents_[2]{0, 0};  // contrast change detected

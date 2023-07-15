@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>event_array_tools</name>
+  <name>event_camera_tools</name>
   <version>1.0.0</version>
-  <description>package with ROS1 and ROS2 tools related to event_array_msgs</description>
+  <description>package with ROS1 and ROS2 tools related to event_camera_msgs</description>
   <maintainer email="bernd.pfrommer@gmail.com">Bernd Pfrommer</maintainer>
   <license>Apache2</license>
 
@@ -25,10 +25,10 @@
   <depend condition="$ROS_VERSION == 1">rosbag</depend>
 
   <!-- common ROS1/ROS2 dependencies -->
-  <depend>event_array_msgs</depend>
+  <depend>event_camera_msgs</depend>
   <depend>dvs_msgs</depend>
   <depend>prophesee_event_msgs</depend>
-  <depend>event_array_codecs</depend>  
+  <depend>event_camera_codecs</depend>  
   
   <export>
     <nodelet plugin="${prefix}/nodelet_plugins.xml"/>

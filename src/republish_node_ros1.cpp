@@ -14,13 +14,13 @@
 // limitations under the License.
 
 #include <dvs_msgs/EventArray.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <prophesee_event_msgs/EventArray.h>
 #include <ros/ros.h>
 
 #include <memory>
 
-#include "event_array_tools/republish_ros1.h"
+#include "event_camera_tools/republish_ros1.h"
 
 int main(int argc, char ** argv)
 {
@@ -28,16 +28,16 @@ int main(int argc, char ** argv)
   ros::init(argc, argv, "republish_node");
   ros::NodeHandle pnh("~");
 
-  const std::string type = pnh.param<std::string>("output_message_type", "event_array");
+  const std::string type = pnh.param<std::string>("output_message_type", "event_packet");
   ROS_INFO_STREAM("republishing as message type: " << type);
   if (type == "dvs") {
-    event_array_tools::Republish<dvs_msgs::EventArray> node(pnh);
+    event_camera_tools::Republish<dvs_msgs::EventArray> node(pnh);
     ros::spin();
   } else if (type == "prophesee") {
-    event_array_tools::Republish<prophesee_event_msgs::EventArray> node(pnh);
+    event_camera_tools::Republish<prophesee_event_msgs::EventArray> node(pnh);
     ros::spin();
-  } else if (type == "event_array") {
-    event_array_tools::Republish<event_array_msgs::EventArray> node(pnh);
+  } else if (type == "event_packet") {
+    event_camera_tools::Republish<event_camera_msgs::EventPacket> node(pnh);
     ros::spin();
   } else {
     ROS_ERROR_STREAM("invalid message type: " << type);

@@ -1,8 +1,8 @@
 <launch>
   <arg name="camera" default="event_camera"/>
-  <arg name="message_type" default="event_array"/>
+  <arg name="message_type" default="event_packet"/>
   <node pkg="nodelet" type="nodelet"
-    name="republish_nodelet" args="standalone event_array_tools/RepublishNodelet"
+    name="republish_nodelet" args="standalone event_camera_tools/RepublishNodelet"
     clear_params="true" output="screen">
     <param name="output_message_type" value="$(arg message_type)"/>
     <remap from="~/input_events" to="/$(arg camera)/events"/>

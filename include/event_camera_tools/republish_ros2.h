@@ -13,25 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef EVENT_ARRAY_TOOLS__REPUBLISH_ROS2_H_
-#define EVENT_ARRAY_TOOLS__REPUBLISH_ROS2_H_
+#ifndef EVENT_CAMERA_TOOLS__REPUBLISH_ROS2_H_
+#define EVENT_CAMERA_TOOLS__REPUBLISH_ROS2_H_
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_codecs/event_processor.h>
-#include <event_array_tools/check_endian.h>
-#include <event_array_tools/message_maker.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_codecs/event_processor.h>
+#include <event_camera_tools/check_endian.h>
+#include <event_camera_tools/message_maker.h>
 #include <inttypes.h>
 
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <fstream>
 #include <rclcpp/rclcpp.hpp>
 #include <unordered_map>
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-using event_array_codecs::Decoder;
-using event_array_msgs::msg::EventArray;
+using event_camera_codecs::Decoder;
+using event_camera_msgs::msg::EventPacket;
 
 template <typename MsgType>
 class Republish
@@ -42,7 +42,7 @@ public:
     int qs;
     nh_->get_parameter_or("recv_queue_size", qs, 1000);
     auto qos = rclcpp::QoS(rclcpp::KeepLast(qs)).best_effort().durability_volatile();
-    sub_ = nh_->create_subscription<EventArray>(
+    sub_ = nh_->create_subscription<EventPacket>(
       "~/input_events", qos, std::bind(&Republish::eventMsg, this, std::placeholders::_1));
     nh_->get_parameter_or("send_queue_size", qs, 1000);
     eventPub_ = nh_->create_publisher<MsgType>(
@@ -53,7 +53,7 @@ public:
   Republish(const Republish &) = delete;
   Republish & operator=(const Republish &) = delete;
 
-  inline void decode(const EventArray::ConstSharedPtr & msg)
+  inline void decode(const EventPacket::ConstSharedPtr & msg)
   {
     auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
     if (!decoder) {
@@ -63,7 +63,7 @@ public:
     decoder->decode(&msg->events[0], msg->events.size(), &messageMaker_);
   }
 
-  void eventMsg(EventArray::ConstSharedPtr msg)
+  void eventMsg(EventPacket::ConstSharedPtr msg)
   {
     const bool pubEvents = eventPub_->get_subscription_count();
     const bool pubTriggers = triggerPub_->get_subscription_count();
@@ -93,11 +93,11 @@ public:
   }
   // ---------- variables
   rclcpp::Node * nh_;
-  rclcpp::Subscription<EventArray>::SharedPtr sub_;
+  rclcpp::Subscription<EventPacket>::SharedPtr sub_;
   typename rclcpp::Publisher<MsgType>::SharedPtr eventPub_;
   typename rclcpp::Publisher<MsgType>::SharedPtr triggerPub_;
-  event_array_codecs::DecoderFactory<MessageMaker<MsgType>> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket, MessageMaker<MsgType>> decoderFactory_;
   MessageMaker<MsgType> messageMaker_;
 };
-}  // namespace event_array_tools
-#endif  // EVENT_ARRAY_TOOLS__REPUBLISH_ROS2_H_
+}  // namespace event_camera_tools
+#endif  // EVENT_CAMERA_TOOLS__REPUBLISH_ROS2_H_

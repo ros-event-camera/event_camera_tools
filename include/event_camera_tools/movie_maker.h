@@ -13,17 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef EVENT_ARRAY_TOOLS__MOVIE_MAKER_H_
-#define EVENT_ARRAY_TOOLS__MOVIE_MAKER_H_
+#ifndef EVENT_CAMERA_TOOLS__MOVIE_MAKER_H_
+#define EVENT_CAMERA_TOOLS__MOVIE_MAKER_H_
 
-#include <event_array_codecs/event_processor.h>
+#include <event_camera_codecs/event_processor.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-class MovieMaker : public event_array_codecs::EventProcessor
+class MovieMaker : public event_camera_codecs::EventProcessor
 {
 public:
   // ---------- from the EventProcessor interface:
@@ -64,5 +64,5 @@ private:
   size_t frameNum_{0};
   bool isFirst_{true};
 };
-}  // namespace event_array_tools
-#endif  // EVENT_ARRAY_TOOLS__MOVIE_MAKER_H_
+}  // namespace event_camera_tools
+#endif  // EVENT_CAMERA_TOOLS__MOVIE_MAKER_H_
