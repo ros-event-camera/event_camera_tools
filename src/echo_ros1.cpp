@@ -13,10 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_codecs/event_processor.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_codecs/event_processor.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <inttypes.h>
 #include <ros/ros.h>
 #include <rosbag/bag.h>
@@ -33,10 +33,10 @@ void usage()
   std::cout << "echo [-b bag] <ros_topic>" << std::endl;
 }
 
-using event_array_codecs::Decoder;
-using event_array_msgs::EventArray;
+using event_camera_codecs::Decoder;
+using event_camera_codecs::EventPacket;
 
-class Echo : public event_array_codecs::EventProcessor
+class Echo : public event_camera_codecs::EventProcessor
 {
 public:
   // ---------- from the EventProcessor interface:
@@ -62,7 +62,7 @@ public:
   void rawData(const char *, size_t) override {}
   // -------- end of inherited
 
-  void eventMsg(EventArray::ConstPtr msg)
+  void eventMsg(EventPacket::ConstPtr msg)
   {
     printf("-------------------------------\n");
     printf("res: %4d  height: %4d enc: %s\n", msg->width, msg->height, msg->encoding.c_str());
@@ -85,7 +85,7 @@ public:
 
 private:
   // ---------- variables
-  event_array_codecs::DecoderFactory<Echo> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket, Echo> decoderFactory_;
   size_t numCDEvents_[2]{0, 0};
   size_t numTrigEvents_[2]{0, 0};
   uint64_t cdStamps_[2]{0, 0};
@@ -101,7 +101,7 @@ public:
     ROS_INFO_STREAM("subscribing to " << topic);
     sub_ = nh_.subscribe(topic, 1, &Echo::eventMsg, echo_);
   }
-  void eventMsg(EventArray::ConstPtr msg) { echo_->eventMsg(msg); }
+  void eventMsg(EventPacket::ConstPtr msg) { echo_->eventMsg(msg); }
   // ---------- variables
   ros::NodeHandle nh_;
   Echo * echo_;
@@ -118,7 +118,7 @@ static void read_from_bag(const std::string & bagName, const std::string & topic
   size_t msgCount(0);
   for (const rosbag::MessageInstance & m : view) {
     if (m.getTopic() == topic) {
-      EventArray::ConstPtr ea = m.instantiate<EventArray>();
+      EventPacket::ConstPtr ea = m.instantiate<EventPacket>();
       if (ea) {
         echo->eventMsg(ea);
         msgCount++;

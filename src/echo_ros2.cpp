@@ -13,14 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_codecs/event_processor.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_codecs/event_processor.h>
 #include <inttypes.h>
 #include <unistd.h>
 
 #include <chrono>
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <fstream>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
@@ -35,10 +35,10 @@ void usage()
   std::cout << "echo [-b bag] <ros_topic>" << std::endl;
 }
 
-using event_array_codecs::Decoder;
-using event_array_msgs::msg::EventArray;
+using event_camera_codecs::Decoder;
+using event_camera_codecs::EventPacket;
 
-class Echo : public event_array_codecs::EventProcessor
+class Echo : public event_camera_codecs::EventProcessor
 {
 public:
   // ---------- from the EventProcessor interface:
@@ -64,7 +64,7 @@ public:
   void rawData(const char *, size_t) override {}
   // -------- end of inherited
 
-  void eventMsg(EventArray::ConstSharedPtr msg)
+  void eventMsg(EventPacket::ConstSharedPtr msg)
   {
     printf("-------------------------------\n");
     printf("res: %4d  height: %4d enc: %s\n", msg->width, msg->height, msg->encoding.c_str());
@@ -88,7 +88,7 @@ public:
 
 private:
   // ---------- variables
-  event_array_codecs::DecoderFactory<Echo> decoderFactory_;
+  event_camera_codecs::DecoderFactory<EventPacket, Echo> decoderFactory_;
   size_t numCDEvents_[2]{0, 0};
   size_t numTrigEvents_[2]{0, 0};
   uint64_t cdStamps_[2]{0, 0};
@@ -104,14 +104,14 @@ public:
     const int qsize = 1000;
     auto qos = rclcpp::QoS(rclcpp::KeepLast(qsize)).best_effort().durability_volatile();
     RCLCPP_INFO_STREAM(this->get_logger(), "subscribing to " << topic);
-    sub_ = this->create_subscription<EventArray>(
+    sub_ = this->create_subscription<EventPacket>(
       topic, qos, std::bind(&EchoNode::eventMsg, this, std::placeholders::_1));
   }
-  void eventMsg(EventArray::ConstSharedPtr msg) { echo_->eventMsg(msg); }
+  void eventMsg(EventPacket::ConstSharedPtr msg) { echo_->eventMsg(msg); }
 
 private:
   // ---------- variables
-  rclcpp::Subscription<EventArray>::SharedPtr sub_;
+  rclcpp::Subscription<EventPacket>::SharedPtr sub_;
   Echo * echo_;
 };
 
@@ -119,12 +119,12 @@ static void read_from_bag(const std::string & bagName, const std::string & topic
 {
   rosbag2_cpp::Reader reader;
   reader.open(bagName);
-  rclcpp::Serialization<EventArray> serialization;
+  rclcpp::Serialization<EventPacket> serialization;
   while (reader.has_next()) {
     auto msg = reader.read_next();
     if (msg->topic_name == topic) {
       rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
-      auto m = std::make_shared<EventArray>();
+      auto m = std::make_shared<EventPacket>();
       serialization.deserialize_message(&serializedMsg, m.get());
       echo->eventMsg(m);
     }

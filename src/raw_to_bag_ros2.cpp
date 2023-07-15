@@ -14,12 +14,12 @@
 // limitations under the License.
 
 #include <assert.h>
-#include <event_array_codecs/decoder.h>
-#include <event_array_codecs/decoder_factory.h>
+#include <event_camera_codecs/decoder.h>
+#include <event_camera_codecs/decoder_factory.h>
 #include <unistd.h>
 
 #include <chrono>
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -31,7 +31,7 @@
 #include <rosbag2_cpp/writers/sequential_writer.hpp>
 #include <rosbag2_storage/serialized_bag_message.hpp>
 
-#include "event_array_tools/check_endian.h"
+#include "event_camera_tools/check_endian.h"
 
 void usage()
 {
@@ -41,9 +41,9 @@ void usage()
             << std::endl;
 }
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-using event_array_msgs::msg::EventArray;
+using event_camera_codecs::EventPacket;
 
 class MessageUpdaterEvt3
 {
@@ -56,7 +56,7 @@ public:
     writer_ = std::make_unique<rosbag2_cpp::Writer>();
     writer_->open(bagName);
     writer_->create_topic(
-      {topic, "event_array_msgs/msg/EventArray", rmw_get_serialization_format(), ""});
+      {topic, "event_camera_msgs/msg/EventPacket", rmw_get_serialization_format(), ""});
     msg_.header.frame_id = frameId;
     msg_.width = width;
     msg_.height = height;
@@ -93,7 +93,7 @@ public:
     msg_.events.clear();  // remove marker
     msg_.events.insert(msg_.events.end(), data, data + len);
 
-    rclcpp::Serialization<EventArray> serialization;
+    rclcpp::Serialization<EventPacket> serialization;
 #ifdef USE_OLD_ROSBAG_API
     rclcpp::SerializedMessage serialized_msg;
     serialization.serialize_message(&msg_, &serialized_msg);
@@ -102,7 +102,7 @@ public:
     serialization.serialize_message(&msg_, serialized_msg.get());
 #endif
     writer_->write(
-      serialized_msg, topic_, "event_array_msgs/msg/EventArray", rclcpp::Time(msg_.header.stamp));
+      serialized_msg, topic_, "event_camera_msgs/msg/EventPacket", rclcpp::Time(msg_.header.stamp));
     msg_.events.clear();  // mark as new
     msg_.seq++;
   }
@@ -110,11 +110,11 @@ public:
 
 private:
   std::unique_ptr<rosbag2_cpp::Writer> writer_;
-  EventArray msg_;
+  EventPacket msg_;
   std::string topic_;
   size_t numEvents_[2]{0, 0};
-  event_array_codecs::DecoderFactory<> decoderFactory_;
-  event_array_codecs::Decoder<> * decoder_;
+  event_camera_codecs::DecoderFactory<EventPacket> decoderFactory_;
+  event_camera_codecs::Decoder<EventPacket> * decoder_;
   bool hasValidRosTime_{false};
   rclcpp::Time startRosTime_;
   uint64_t startSensorTime_{0};
@@ -130,7 +130,7 @@ static void skip_header(std::fstream & in)
   }
 }
 
-}  // namespace event_array_tools
+}  // namespace event_camera_tools
 
 int main(int argc, char ** argv)
 {
@@ -185,14 +185,14 @@ int main(int argc, char ** argv)
   }
   const auto start = std::chrono::high_resolution_clock::now();
 
-  event_array_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
+  event_camera_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
   std::fstream in;
   in.open(inFile, std::ios::in | std::ios::binary);
   if (!in.is_open()) {
     std::cerr << "cannot open file: " << inFile << std::endl;
     return (-1);
   }
-  event_array_tools::skip_header(in);
+  event_camera_tools::skip_header(in);
   std::vector<char> buffer(bufSize);
   size_t bytesRead(0);
   while (true) {

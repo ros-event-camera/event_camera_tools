@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 #include <chrono>
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <fstream>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
@@ -30,9 +30,9 @@ void usage()
   std::cout << "bag_to_raw -b name_of_bag_file -o name_of_raw_file -t topic -c camera" << std::endl;
 }
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-using event_array_msgs::msg::EventArray;
+using event_camera_msgs::msg::EventPacket;
 
 std::map<std::string, std::string> headers = {
   {"silkyev",
@@ -84,13 +84,13 @@ static size_t process_bag(
   {
     rosbag2_cpp::Reader reader;
     reader.open(inFile);
-    rclcpp::Serialization<EventArray> serialization;
+    rclcpp::Serialization<EventPacket> serialization;
     uint32_t last_evt_stamp(0);
     while (reader.has_next()) {
       auto msg = reader.read_next();
       if (msg->topic_name == topic) {
         rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
-        EventArray m;
+        EventPacket m;
         serialization.deserialize_message(&serializedMsg, &m);
         numBytes +=
           write(out, &m.events[0], m.events.size(), m.time_base, m.encoding, &last_evt_stamp);
@@ -100,7 +100,7 @@ static size_t process_bag(
   }  // close reader when out of scope
   return (numBytes);
 }
-}  // namespace event_array_tools
+}  // namespace event_camera_tools
 
 int main(int argc, char ** argv)
 {
@@ -141,17 +141,17 @@ int main(int argc, char ** argv)
     usage();
     return (-1);
   }
-  const auto h = event_array_tools::headers.find(camera);
-  if (camera.empty() || h == event_array_tools::headers.end()) {
+  const auto h = event_camera_tools::headers.find(camera);
+  if (camera.empty() || h == event_camera_tools::headers.end()) {
     std::cout << "missing or unknown camera, must specify one of these: " << std::endl;
-    for (const auto & h : event_array_tools::headers) {
+    for (const auto & h : event_camera_tools::headers) {
       std::cout << "  " << h.first << std::endl;
     }
     return (-1);
   }
 
   auto start = std::chrono::high_resolution_clock::now();
-  const size_t numBytes = event_array_tools::process_bag(inFile, outFile, topic, h->second);
+  const size_t numBytes = event_camera_tools::process_bag(inFile, outFile, topic, h->second);
   auto final = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
 

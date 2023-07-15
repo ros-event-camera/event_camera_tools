@@ -14,15 +14,15 @@
 // limitations under the License.
 
 #include <dvs_msgs/msg/event_array.hpp>
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <memory>
 #include <prophesee_event_msgs/msg/event_array.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 
-#include "event_array_tools/republish_ros2.h"
+#include "event_camera_tools/republish_ros2.h"
 
-namespace event_array_tools
+namespace event_camera_tools
 {
 class RepublishComposable : public rclcpp::Node
 {
@@ -30,28 +30,29 @@ public:
   explicit RepublishComposable(const rclcpp::NodeOptions & options);
 
 private:
-  std::shared_ptr<event_array_tools::Republish<dvs_msgs::msg::EventArray>> nodeDvs_;
-  std::shared_ptr<event_array_tools::Republish<prophesee_event_msgs::msg::EventArray>>
+  std::shared_ptr<event_camera_tools::Republish<dvs_msgs::msg::EventArray>> nodeDvs_;
+  std::shared_ptr<event_camera_tools::Republish<prophesee_event_msgs::msg::EventArray>>
     nodeProphesee_;
-  std::shared_ptr<event_array_tools::Republish<event_array_msgs::msg::EventArray>> nodeEventArray_;
+  std::shared_ptr<event_camera_tools::Republish<event_camera_msgs::msg::EventPacket>>
+    nodeEventPacket_;
 };
 
 RepublishComposable::RepublishComposable(const rclcpp::NodeOptions & options)
 : rclcpp::Node("republish", options)
 {
   std::string type;
-  this->get_parameter_or("output_message_type", type, std::string("event_array"));
+  this->get_parameter_or("output_message_type", type, std::string("event_packet"));
   if (type == "dvs") {
     nodeDvs_ = std::make_shared<Republish<dvs_msgs::msg::EventArray>>(this);
   } else if (type == "prophesee") {
     nodeProphesee_ = std::make_shared<Republish<prophesee_event_msgs::msg::EventArray>>(this);
-  } else if (type == "event_array") {
-    nodeEventArray_ = std::make_shared<Republish<event_array_msgs::msg::EventArray>>(this);
+  } else if (type == "event_packet") {
+    nodeEventPacket_ = std::make_shared<Republish<event_camera_msgs::msg::EventPacket>>(this);
   } else {
     RCLCPP_ERROR_STREAM(get_logger(), "invalid message type: " << type);
     throw(std::runtime_error("invalid message type"));
   }
 }
 
-}  // namespace event_array_tools
-RCLCPP_COMPONENTS_REGISTER_NODE(event_array_tools::RepublishComposable)
+}  // namespace event_camera_tools
+RCLCPP_COMPONENTS_REGISTER_NODE(event_camera_tools::RepublishComposable)

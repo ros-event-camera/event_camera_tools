@@ -1,7 +1,7 @@
-# event_array_tools
+# event_camera_tools
 
 This repository holds ROS/ROS2 tools for displaying and converting
-[event_array_msgs](https://github.com/ros-event-camera/event_array_msgs)
+[event_camera_msgs](https://github.com/ros-event-camera/event_camera_msgs)
 under ROS and ROS2. These messages are produced by the
 [metavision_driver](https://github.com/ros-event-camera/metavision_ros_driver).
 
@@ -10,11 +10,11 @@ under ROS and ROS2. These messages are produced by the
 Currently tested on Ubuntu 20.04/22.04 under ROS Noetic and ROS2 Galactic/Humble.
 
 ## How to build
-Create a workspace (``event_array_tools_ws``), clone this repo, and use ``vcs``
+Create a workspace (``event_camera_tools_ws``), clone this repo, and use ``vcs``
 to pull in the remaining dependencies:
 
 ```
-pkg=event_array_tools
+pkg=event_camera_tools
 mkdir -p ~/${pkg}_ws/src
 cd ~/${pkg}_ws
 git clone https://github.com/ros-event-camera/${pkg}.git src/${pkg}
@@ -39,8 +39,8 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  #
 
 ## Republish conversion nodelet
 
-The ``republish`` node converts event_array_msgs to legacy formats
-like dvs, prophesee, and decoded ("mono") event_array messages. Note
+The ``republish`` node converts event_camera_msgs to legacy formats
+like dvs, prophesee, and decoded ("mono") event_camera messages. Note
 that this nodelet will be consuming a significant amount of CPU
 resources and should not be run unnecessarily while recording data.
 The following command will start a conversion nodelet to republish
@@ -49,15 +49,15 @@ events from ``/event_camera/events`` to
 ``/event_camera/republished_triggers``
 (similar syntax under ROS2, see launch file for remapping):
 ```
-roslaunch event_array_tools republish_nodelet.launch camera:=event_camera message_type:=event_array
+roslaunch event_camera_tools republish_nodelet.launch camera:=event_camera message_type:=event_packet
 ```
 
 ## Tools
 
 All tools are provided in ROS and ROS2 (syntax below is for ROS):
 
-- ``rosrun event_array_tools echo [-b <bag>] <topic>``: displays messages in
-  ``event_array_msgs`` format, optionally from a bag file. Example output:
+- ``rosrun event_camera_tools echo [-b <bag>] <topic>``: displays messages in
+  ``event_camera_msgs`` format, optionally from a bag file. Example output:
   ```
   -------------------------------
   res:  640  height:  480 enc: evt3
@@ -70,7 +70,7 @@ All tools are provided in ROS and ROS2 (syntax below is for ROS):
   6851520000   33  326 0
   ...
   ```
-- ``rosrun event_array_tools perf <topic>``:
+- ``rosrun event_camera_tools perf <topic>``:
   Sample output:
   ```
   msgs:   219.48/s drp:  0 del: 13.72ms drft: 0.0033s ev:   0.0823 M/s %ON:  46 tr:  1758.38 1/s %UP:  50
@@ -88,7 +88,7 @@ All tools are provided in ROS and ROS2 (syntax below is for ROS):
    - ``%ON`` ratio of ON events to total (ON + OFF) events
    - ``tr`` rate of trigger messages
    - ``%UP`` ratio of UP trigger edges to total (UP + DOWN)
-- ``rosrun event_array_tools sync_test <cam_0_event_topic> <cam_1_event_topic>``
+- ``rosrun event_camera_tools sync_test <cam_0_event_topic> <cam_1_event_topic>``
   The output gives the average sensor time difference and how many
   samples where counted:
   ```
@@ -96,18 +96,18 @@ All tools are provided in ROS and ROS2 (syntax below is for ROS):
   avg sensor diff:  0.00377s, count:   466
   ...
   ```
-- ``rosrun event_array_tools bag_to_raw -t <topic> -b <bag_name> -o <outout_raw_file> -c <camera_type>`` 
-  Converts bags with evt3 event_array_msgs to raw file. The
+- ``rosrun event_camera_tools bag_to_raw -t <topic> -b <bag_name> -o <outout_raw_file> -c <camera_type>`` 
+  Converts bags with evt3 event_camera_msgs to raw file. The
   ``camera_type`` argument is necessary to produce a valid header for
   the raw file.
-- ``rosrun event_array_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -B <buffer_size>``
-  Converts raw file into bag with evt3 event_array_msgs. The buffer
+- ``rosrun event_camera_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -B <buffer_size>``
+  Converts raw file into bag with evt3 event_camera_msgs. The buffer
   size determines the size and number of ROS messages in the bag.
-- ``rosrun event_array_tools movie_maker -f <fps> -b <bag_name> -t <topic>``:
+- ``rosrun event_camera_tools movie_maker -f <fps> -b <bag_name> -t <topic>``:
   produces sequence of frame images.
-- ``rosrun event_array_tools legacy_to_bag -t <topic> -b <input_bag_file> -o <output_bag_file>``
+- ``rosrun event_camera_tools legacy_to_bag -t <topic> -b <input_bag_file> -o <output_bag_file>``
   ROS1 only: Converts bags with DVS or Prophesee messages to evt3
-  event_array_msgs.
+  event_camera_msgs.
 
 ## License
 

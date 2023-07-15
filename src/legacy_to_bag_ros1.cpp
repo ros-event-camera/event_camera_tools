@@ -14,8 +14,8 @@
 // limitations under the License.
 
 #include <dvs_msgs/EventArray.h>
-#include <event_array_codecs/encoder.h>
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_codecs/encoder.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <prophesee_event_msgs/EventArray.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -24,7 +24,7 @@
 #include <chrono>
 #include <iostream>
 
-#include "event_array_tools/check_endian.h"
+#include "event_camera_tools/check_endian.h"
 
 void usage()
 {
@@ -32,17 +32,17 @@ void usage()
   std::cout << "legacy_to_bag -b name_of_legacy_bag_file -o name_of_new_bag -t topic " << std::endl;
 }
 
-namespace event_array_tools
+namespace event_camera_tools
 {
 template <typename MsgType>
 static size_t processMsg(
   const typename MsgType::ConstPtr & inMsg, const std::string & topic, rosbag::Bag * outBag,
-  event_array_codecs::Encoder * enc)
+  event_camera_codecs::Encoder * enc)
 {
   if (inMsg->events.empty()) {
     return (0);  // drop empty messages
   }
-  event_array_msgs::EventArray outMsg;
+  event_camera_msgs::EventPacket outMsg;
   outMsg.header = inMsg->header;
   enc->setBuffer(&outMsg.events);
   // use first event time to set sensor time
@@ -72,7 +72,7 @@ static size_t process_bag(
   inBag.open(inBagName, rosbag::bagmode::Read);
   rosbag::Bag outBag;
   outBag.open(outBagName, rosbag::bagmode::Write);
-  auto encoder = event_array_codecs::Encoder::newInstance("evt3");
+  auto encoder = event_camera_codecs::Encoder::newInstance("evt3");
   if (!encoder) {
     std::cerr << "evt3 codec not supported by encoder!" << std::endl;
     throw(std::runtime_error("evt3 unsupported!"));
@@ -102,7 +102,7 @@ static size_t process_bag(
   std::cout << "read " << numMessages << " messages" << std::endl;
   return (numEvents);
 }
-}  // namespace event_array_tools
+}  // namespace event_camera_tools
 
 int main(int argc, char ** argv)
 {
@@ -136,7 +136,7 @@ int main(int argc, char ** argv)
   }
   const auto start = std::chrono::high_resolution_clock::now();
 
-  const size_t numEvents = event_array_tools::process_bag(inBag, outBag, topic);
+  const size_t numEvents = event_camera_tools::process_bag(inBag, outBag, topic);
 
   const auto end = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

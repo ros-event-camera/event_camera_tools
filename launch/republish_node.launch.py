@@ -26,13 +26,13 @@ def launch_setup(context, *args, **kwargs):
     """Create simple node."""
     cam_name = LaunchConfig('camera_name')
     cam_str = cam_name.perform(context)
-    node = Node(package='event_array_tools',
+    node = Node(package='event_camera_tools',
                 executable='republish_node',
                 output='screen',
                 # prefix=['xterm -e gdb -ex run --args'],
                 name="republisher",
                 parameters=[
-                    {'output_message_type': 'event_array'}],
+                    {'output_message_type': 'event_packet'}],
                 remappings=[
                     ('~/input_events', cam_str + '/events'),
                     ('~/output_events', cam_str + '/republished_events'),

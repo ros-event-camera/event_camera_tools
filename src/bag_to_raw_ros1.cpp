@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_msgs/EventArray.h>
+#include <event_camera_msgs/EventPacket.h>
 #include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -29,9 +29,9 @@ void usage()
   std::cout << "bag_to_raw -b name_of_bag_file -o name_of_raw_file -t topic -c camera" << std::endl;
 }
 
-namespace event_array_tools
+namespace event_camera_tools
 {
-using event_array_msgs::EventArray;
+using event_camera_msgs::EventPacket;
 
 std::map<std::string, std::string> headers = {
   {"silkyev",
@@ -90,7 +90,7 @@ static size_t process_bag(
 
     for (const rosbag::MessageInstance & m : view) {
       if (m.getTopic() == topic) {
-        EventArray::ConstPtr ea = m.instantiate<EventArray>();
+        EventPacket::ConstPtr ea = m.instantiate<EventPacket>();
         if (ea) {
           (void)write(
             out, &ea->events[0], ea->events.size(), ea->time_base, ea->encoding, &last_evt_stamp);
@@ -103,7 +103,7 @@ static size_t process_bag(
   std::cout << "read " << numMessages << " messages" << std::endl;
   return (numMessages);
 }
-}  // namespace event_array_tools
+}  // namespace event_camera_tools
 
 int main(int argc, char ** argv)
 {
@@ -143,16 +143,16 @@ int main(int argc, char ** argv)
     usage();
     return (-1);
   }
-  const auto h = event_array_tools::headers.find(camera);
-  if (camera.empty() || h == event_array_tools::headers.end()) {
+  const auto h = event_camera_tools::headers.find(camera);
+  if (camera.empty() || h == event_camera_tools::headers.end()) {
     std::cout << "missing or unknown camera, must specify one of these: " << std::endl;
-    for (const auto & c : event_array_tools::headers) {
+    for (const auto & c : event_camera_tools::headers) {
       std::cout << c.first << std::endl;
     }
     return (-1);
   }
   auto start = std::chrono::high_resolution_clock::now();
-  const size_t numMsgs = event_array_tools::process_bag(inFile, outFile, topic, h->second);
+  const size_t numMsgs = event_camera_tools::process_bag(inFile, outFile, topic, h->second);
   auto final = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
 

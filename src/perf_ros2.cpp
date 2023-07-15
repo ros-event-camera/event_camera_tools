@@ -13,12 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <event_array_codecs/decoder_factory.h>
-#include <event_array_codecs/event_processor.h>
+#include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_codecs/event_processor.h>
 #include <unistd.h>
 
 #include <chrono>
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <fstream>
 #include <rclcpp/rclcpp.hpp>
 #include <unordered_map>
@@ -29,10 +29,10 @@ void usage()
   std::cout << "perf [-s use_sim_time] <ros_topic>" << std::endl;
 }
 
-using event_array_codecs::Decoder;
-using event_array_msgs::msg::EventArray;
+using event_camera_codecs::Decoder;
+using event_camera_msgs::msg::EventPacket;
 
-class Perf : public rclcpp::Node, public event_array_codecs::EventProcessor
+class Perf : public rclcpp::Node, public event_camera_codecs::EventProcessor
 {
 public:
   explicit Perf(const std::string & topic, const rclcpp::NodeOptions & options)
@@ -41,7 +41,7 @@ public:
     const int qsize = 1000;
     auto qos = rclcpp::QoS(rclcpp::KeepLast(qsize)).best_effort().durability_volatile();
     RCLCPP_INFO_STREAM(this->get_logger(), "subscribing to " << topic);
-    sub_ = this->create_subscription<EventArray>(
+    sub_ = this->create_subscription<EventPacket>(
       topic, qos, std::bind(&Perf::eventMsg, this, std::placeholders::_1));
     timer_ = rclcpp::create_timer(
       this, this->get_clock(), rclcpp::Duration::from_seconds(2.0),
@@ -61,7 +61,7 @@ public:
   void finished() override {}
   void rawData(const char *, size_t) override {}
   // -------- end of inherited
-  void eventMsg(EventArray::ConstSharedPtr msg)
+  void eventMsg(EventPacket::ConstSharedPtr msg)
   {
     auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
     if (!decoder) {
@@ -123,8 +123,8 @@ public:
     lastTime_ = t;
   }
   // ---------- variables
-  rclcpp::Subscription<EventArray>::SharedPtr sub_;
-  event_array_codecs::DecoderFactory<Perf> decoderFactory_;
+  rclcpp::Subscription<EventPacket>::SharedPtr sub_;
+  event_camera_codecs::DecoderFactory<EventPacket, Perf> decoderFactory_;
   rclcpp::TimerBase::SharedPtr timer_;
   size_t numMsgs_{0};
   size_t cdEvents_[2]{0, 0};  // contrast change detected

@@ -14,12 +14,12 @@
 // limitations under the License.
 
 #include <dvs_msgs/msg/event_array.hpp>
-#include <event_array_msgs/msg/event_array.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <memory>
 #include <prophesee_event_msgs/msg/event_array.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "event_array_tools/republish_ros2.h"
+#include "event_camera_tools/republish_ros2.h"
 
 int main(int argc, char ** argv)
 {
@@ -27,15 +27,15 @@ int main(int argc, char ** argv)
   std::string type;
   auto node = std::make_shared<rclcpp::Node>(
     "republish", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true));
-  node->get_parameter_or("output_message_type", type, std::string("event_array"));
+  node->get_parameter_or("output_message_type", type, std::string("event_packet"));
   if (type == "dvs") {
-    event_array_tools::Republish<dvs_msgs::msg::EventArray> rep(node.get());
+    event_camera_tools::Republish<dvs_msgs::msg::EventArray> rep(node.get());
     rclcpp::spin(node);  // should not return
   } else if (type == "prophesee") {
-    event_array_tools::Republish<prophesee_event_msgs::msg::EventArray> rep(node.get());
+    event_camera_tools::Republish<prophesee_event_msgs::msg::EventArray> rep(node.get());
     rclcpp::spin(node);  // should not return
-  } else if (type == "event_array") {
-    event_array_tools::Republish<event_array_msgs::msg::EventArray> rep(node.get());
+  } else if (type == "event_packet") {
+    event_camera_tools::Republish<event_camera_msgs::msg::EventPacket> rep(node.get());
     rclcpp::spin(node);  // should not return
   } else {
     std::cerr << "invalid message type: " << type << std::endl;
