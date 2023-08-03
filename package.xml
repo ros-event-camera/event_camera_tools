@@ -29,6 +29,7 @@
   <depend>dvs_msgs</depend>
   <depend>prophesee_event_msgs</depend>
   <depend>event_camera_codecs</depend>  
+  <buildtool_depend>ros_environment</buildtool_depend> <!-- ROS_VERSION + ROS_DISTRO -->
   
   <export>
     <nodelet plugin="${prefix}/nodelet_plugins.xml"/>
