@@ -122,7 +122,7 @@ int main(int argc, char ** argv)
   int height(480);
   int width(640);
   int bufSize(150000);
-  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:B:")) != -1) {
     switch (opt) {
       case 'b':
         outFile = optarg;
