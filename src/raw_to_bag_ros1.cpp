@@ -31,7 +31,7 @@ void usage()
 {
   std::cout << "usage:" << std::endl;
   std::cout << "raw_to_bag -b name_of_bag_file -i name_of_raw_file -t topic -f "
-               "frame_id -w width -h height -B buf_size"
+               "frame_id -w width -h height -B buf_size [-T start_time]"
             << std::endl;
 }
 
@@ -44,8 +44,8 @@ class MessageUpdaterEvt3
 public:
   explicit MessageUpdaterEvt3(
     const std::string & bagName, const std::string & topic, const std::string & frameId,
-    uint32_t width, uint32_t height)
-  : topic_(topic)
+    uint32_t width, uint32_t height, const ros::Time & startTime)
+  : topic_(topic), initialRosTime_(startTime)
   {
     bag_.open(bagName, rosbag::bagmode::Write);
     msg_.header.frame_id = frameId;
@@ -69,7 +69,7 @@ public:
     const bool hasValidSensorTime = decoder_->summarize(
       reinterpret_cast<const uint8_t *>(data), len, &sensorTime, &lastSensorTime_, numEvents_);
     if (!hasValidRosTime_) {
-      startRosTime_ = ros::Time::now();
+      startRosTime_ = initialRosTime_;
       if (hasValidSensorTime) {
         startSensorTime_ = sensorTime;
         hasValidRosTime_ = true;
@@ -96,6 +96,7 @@ public:
   event_camera_codecs::Decoder<EventPacket> * decoder_;
 
   bool hasValidRosTime_{false};
+  ros::Time initialRosTime_{0};
   ros::Time startRosTime_;
   uint64_t startSensorTime_{0};
   uint64_t lastSensorTime_{0};
@@ -122,7 +123,8 @@ int main(int argc, char ** argv)
   int height(480);
   int width(640);
   int bufSize(150000);
-  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:B:")) != -1) {
+  double startTimeSec{-1};
+  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:B:T:")) != -1) {
     switch (opt) {
       case 'b':
         outFile = optarg;
@@ -145,6 +147,9 @@ int main(int argc, char ** argv)
       case 'B':
         bufSize = 2 * atoi(optarg);  // event has 2 bytes!
         break;
+      case 'T':
+        startTimeSec = std::stod(optarg);  // time since epoch
+        break;
       default:
         std::cout << "unknown option: " << opt << std::endl;
         usage();
@@ -160,7 +165,9 @@ int main(int argc, char ** argv)
   auto start = std::chrono::high_resolution_clock::now();
 
   decltype(start) final;
-  event_camera_tools::MessageUpdaterEvt3 updater(outFile, topic, frameId, width, height);
+  event_camera_tools::MessageUpdaterEvt3 updater(
+    outFile, topic, frameId, width, height,
+    startTimeSec < 0 ? ros::Time::now() : ros::Time(startTimeSec));
 
   std::fstream in;
   in.open(inFile, std::ios::in | std::ios::binary);
