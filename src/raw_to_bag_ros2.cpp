@@ -55,8 +55,13 @@ public:
   {
     writer_ = std::make_unique<rosbag2_cpp::Writer>();
     writer_->open(bagName);
-    writer_->create_topic(
-      {topic, "event_camera_msgs/msg/EventPacket", rmw_get_serialization_format(), ""});
+    struct rosbag2_storage::TopicMetadata md;
+    md.name = topic;
+    md.type = "event_camera_msgs/msg/EventPacket";
+    md.serialization_format = rmw_get_serialization_format();
+    md.offered_qos_profiles = "";
+    // md.type_description_hash = "";
+    writer_->create_topic(md);
     msg_.header.frame_id = frameId;
     msg_.width = width;
     msg_.height = height;
