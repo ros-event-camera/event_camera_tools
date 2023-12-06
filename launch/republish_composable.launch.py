@@ -16,11 +16,11 @@
 #
 
 import launch
-from launch_ros.actions import ComposableNodeContainer
-from launch_ros.descriptions import ComposableNode
-from launch.substitutions import LaunchConfiguration as LaunchConfig
 from launch.actions import DeclareLaunchArgument as LaunchArg
 from launch.actions import OpaqueFunction
+from launch.substitutions import LaunchConfiguration as LaunchConfig
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 
 
 def launch_setup(context, *args, **kwargs):
@@ -28,35 +28,34 @@ def launch_setup(context, *args, **kwargs):
     cam_name = LaunchConfig('camera_name')
     cam_str = cam_name.perform(context)
     container = ComposableNodeContainer(
-            name='republisher',
-            namespace='',
-            package='rclcpp_components',
-            executable='component_container',
-            composable_node_descriptions=[
-                ComposableNode(
-                    package='event_camera_tools',
-                    plugin='event_camera_tools::RepublishComposable',
-                    name=cam_name,
-                    parameters=[
-                        {'output_message_type': 'event_packet'}],
-                    remappings=[
-                        ('~/input_events', cam_str + '/events'),
-                        ('~/output_events', cam_str + '/republished_events'),
-                        ('~/output_triggers',
-                         cam_str + '/republished_triggers'),
-                    ],
-                    extra_arguments=[{'use_intra_process_comms': True}],
-                )
-            ],
-            output='screen',
+        name='republisher',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='event_camera_tools',
+                plugin='event_camera_tools::RepublishComposable',
+                name=cam_name,
+                parameters=[{'output_message_type': 'event_packet'}],
+                remappings=[
+                    ('~/input_events', cam_str + '/events'),
+                    ('~/output_events', cam_str + '/republished_events'),
+                    ('~/output_triggers', cam_str + '/republished_triggers'),
+                ],
+                extra_arguments=[{'use_intra_process_comms': True}],
+            )
+        ],
+        output='screen',
     )
     return [container]
 
 
 def generate_launch_description():
     """Create composable node by calling opaque function."""
-    return launch.LaunchDescription([
-        LaunchArg('camera_name', default_value=['event_camera'],
-                  description='camera name'),
-        OpaqueFunction(function=launch_setup)
-        ])
+    return launch.LaunchDescription(
+        [
+            LaunchArg('camera_name', default_value=['event_camera'], description='camera name'),
+            OpaqueFunction(function=launch_setup),
+        ]
+    )

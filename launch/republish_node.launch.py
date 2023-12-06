@@ -16,35 +16,37 @@
 #
 
 import launch
-from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration as LaunchConfig
 from launch.actions import DeclareLaunchArgument as LaunchArg
 from launch.actions import OpaqueFunction
+from launch.substitutions import LaunchConfiguration as LaunchConfig
+from launch_ros.actions import Node
 
 
 def launch_setup(context, *args, **kwargs):
     """Create simple node."""
     cam_name = LaunchConfig('camera_name')
     cam_str = cam_name.perform(context)
-    node = Node(package='event_camera_tools',
-                executable='republish_node',
-                output='screen',
-                # prefix=['xterm -e gdb -ex run --args'],
-                name="republisher",
-                parameters=[
-                    {'output_message_type': 'event_packet'}],
-                remappings=[
-                    ('~/input_events', cam_str + '/events'),
-                    ('~/output_events', cam_str + '/republished_events'),
-                    ('~/output_triggers', cam_str + '/republished_triggers'),
-                ])
+    node = Node(
+        package='event_camera_tools',
+        executable='republish_node',
+        output='screen',
+        # prefix=['xterm -e gdb -ex run --args'],
+        name='republisher',
+        parameters=[{'output_message_type': 'event_packet'}],
+        remappings=[
+            ('~/input_events', cam_str + '/events'),
+            ('~/output_events', cam_str + '/republished_events'),
+            ('~/output_triggers', cam_str + '/republished_triggers'),
+        ],
+    )
     return [node]
 
 
 def generate_launch_description():
     """Create simple node by calling opaque function."""
-    return launch.LaunchDescription([
-        LaunchArg('camera_name', default_value=['event_camera'],
-                  description='camera name'),
-        OpaqueFunction(function=launch_setup)
-        ])
+    return launch.LaunchDescription(
+        [
+            LaunchArg('camera_name', default_value=['event_camera'], description='camera name'),
+            OpaqueFunction(function=launch_setup),
+        ]
+    )

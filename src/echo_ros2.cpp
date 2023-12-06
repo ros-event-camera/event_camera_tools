@@ -67,7 +67,7 @@ public:
   void eventMsg(EventPacket::ConstSharedPtr msg)
   {
     printf("-------------------------------\n");
-    printf("res: %4d  height: %4d enc: %s\n", msg->width, msg->height, msg->encoding.c_str());
+    printf("width: %4d  height: %4d enc: %s\n", msg->width, msg->height, msg->encoding.c_str());
     printf("header stamp: %8" PRIu64 "\n", rclcpp::Time(msg->header.stamp).nanoseconds());
     printf("time base: %8" PRIu64 "\n", msg->time_base);
     printf("seqno: %8" PRIu64 "\n", msg->seq);
