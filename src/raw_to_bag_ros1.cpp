@@ -31,7 +31,7 @@ void usage()
 {
   std::cout << "usage:" << std::endl;
   std::cout << "raw_to_bag -b name_of_bag_file -i name_of_raw_file -t topic -f "
-               "frame_id -w width -h height -B buf_size [-T start_time]"
+               "frame_id -w width -h height -B buf_size [-T start_time (sec UTC)]"
             << std::endl;
 }
 

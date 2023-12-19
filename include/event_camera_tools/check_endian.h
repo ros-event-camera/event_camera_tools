@@ -16,6 +16,8 @@
 #ifndef EVENT_CAMERA_TOOLS__CHECK_ENDIAN_H_
 #define EVENT_CAMERA_TOOLS__CHECK_ENDIAN_H_
 
+#include <cstdint>
+
 namespace event_camera_tools
 {
 namespace check_endian
