@@ -51,7 +51,6 @@ ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
 
 
 # --------- sync test
-
 ament_auto_add_executable(sync_test  src/sync_test_ros2.cpp)
 
 # -------- echo tool
@@ -61,17 +60,20 @@ ament_auto_add_executable(echo  src/echo_ros2.cpp)
 ament_auto_add_executable(perf  src/perf_ros2.cpp)
 
 # -------- conversion tools
-
 ament_auto_add_executable(bag_to_raw src/bag_to_raw_ros2.cpp)
 ament_auto_add_executable(raw_to_bag src/raw_to_bag_ros2.cpp)
 
 # -------- movie maker
-
 ament_auto_add_executable(movie_maker  src/movie_maker_ros2.cpp)
 target_link_libraries(movie_maker opencv_core opencv_imgcodecs)
 
-# -------- republish node and composable
+# -------- plot events
+ament_auto_add_executable(plot_events  src/plot_events_ros2.cpp)
 
+# -------- find_trigger_events
+ament_auto_add_executable(find_trigger_events  src/find_trigger_events_ros2.cpp)
+
+# -------- republish node and composable
 ament_auto_add_library(republish SHARED src/republish_composable.cpp)
 target_include_directories(republish PRIVATE include)
 rclcpp_components_register_nodes(republish "event_camera_tools::RepublishComposable")
@@ -89,6 +91,8 @@ install(TARGETS
   bag_to_raw
   raw_to_bag
   movie_maker
+  plot_events
+  find_trigger_events
   republish_node
   DESTINATION lib/${PROJECT_NAME}/)
 

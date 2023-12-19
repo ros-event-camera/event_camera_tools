@@ -52,7 +52,7 @@ events from ``/event_camera/events`` to
 roslaunch event_camera_tools republish_nodelet.launch camera:=event_camera message_type:=event_packet
 ```
 
-## Tools
+## ROS1/ROS2 Tools
 
 All tools are provided in ROS and ROS2 (syntax below is for ROS):
 
@@ -96,18 +96,45 @@ All tools are provided in ROS and ROS2 (syntax below is for ROS):
   avg sensor diff:  0.00377s, count:   466
   ...
   ```
-- ``rosrun event_camera_tools bag_to_raw -t <topic> -b <bag_name> -o <outout_raw_file> -c <camera_type>`` 
+- ``rosrun event_camera_tools bag_to_raw -t <topic> -b <bag_name> -o <outout_raw_file> -c <camera_type>``
+
   Converts bags with evt3 event_camera_msgs to raw file. The
   ``camera_type`` argument is necessary to produce a valid header for
   the raw file.
 - ``rosrun event_camera_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -B <buffer_size>``
+
   Converts raw file into bag with evt3 event_camera_msgs. The buffer
   size determines the size and number of ROS messages in the bag.
-- ``rosrun event_camera_tools movie_maker -f <fps> -b <bag_name> -t <topic>``:
+- ``rosrun event_camera_tools movie_maker -f <fps> -b <bag_name> -t <topic>``
+
   produces sequence of frame images.
+## ROS1 only tools:
+
 - ``rosrun event_camera_tools legacy_to_bag -t <topic> -b <input_bag_file> -o <output_bag_file>``
-  ROS1 only: Converts bags with DVS or Prophesee messages to evt3
-  event_camera_msgs.
+
+  Converts bags with DVS or Prophesee messages to evt3 event_camera_msgs.
+
+
+## ROS2 only tools
+
+- ``ros2 run event_camera_tools find_trigger_events -i input_bag -t topic_with_trigger_events``
+
+  This tool is useful when aligning reconstructed image frames for datasets that use a pulse-per-second synchronization scheme. The ``find_trigger_events`` tool finds the ROS time and sensor time of the first trigger pulse in a rosbag. Output example:
+  ```
+  first trigger ROS    time: 1702577874035860000
+  first trigger sensor time: 24809136000
+  num triggers: 1712
+  avg time between triggers:
+  ROS time:    0.0499567s
+  sensor time: 0.0499567s
+  processed 202 number of messages
+  ```
+  The ROS and sensor times of the first trigger event serve as inputs for [image reconstruction tools](https://github.com/berndpfrommer/simple_image_recon) such as ``bag_to_frames``.
+
+
+- ``ros2 run event_camera_tools plot_events -b name_of_bag -o name_of_plot_file -t topic``
+
+  Creates file with 4 columns (time, x, y, polarity) for plotting. Also useful for clear text viewing of events in bag file.
 
 ## License
 

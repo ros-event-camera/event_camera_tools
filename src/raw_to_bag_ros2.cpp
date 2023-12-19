@@ -16,6 +16,7 @@
 #include <assert.h>
 #include <event_camera_codecs/decoder.h>
 #include <event_camera_codecs/decoder_factory.h>
+#include <event_camera_tools/check_endian.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -31,13 +32,11 @@
 #include <rosbag2_cpp/writers/sequential_writer.hpp>
 #include <rosbag2_storage/serialized_bag_message.hpp>
 
-#include "event_camera_tools/check_endian.h"
-
 void usage()
 {
   std::cout << "usage:" << std::endl;
   std::cout << "raw_to_bag -b name_of_bag_file -i name_of_raw_file -t topic -f "
-               "frame_id -w width -h height -B buf_size [-T start_time]"
+               "frame_id -w width -h height -B buf_size [-T start_time(UTC sec)]"
             << std::endl;
 }
 
