@@ -58,7 +58,7 @@ public:
     md.name = topic;
     md.type = "event_camera_msgs/msg/EventPacket";
     md.serialization_format = rmw_get_serialization_format();
-    md.offered_qos_profiles = "";
+    // md.offered_qos_profiles = "";
     // md.type_description_hash = "";
     writer_->create_topic(md);
     msg_.header.frame_id = frameId;
