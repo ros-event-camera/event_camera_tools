@@ -10,32 +10,13 @@ under ROS and ROS2. These messages are produced by the
 Currently tested on Ubuntu 20.04/22.04 under ROS Noetic and ROS2 Galactic/Humble.
 
 ## How to build
-Create a workspace (``event_camera_tools_ws``), clone this repo, and use ``vcs``
-to pull in the remaining dependencies:
 
+Set the following shell variables:
+```bash
+repo=event_camera_tools
+url=https://github.com/ros-event-camera/${repo}.git
 ```
-pkg=event_camera_tools
-mkdir -p ~/${pkg}_ws/src
-cd ~/${pkg}_ws
-git clone https://github.com/ros-event-camera/${pkg}.git src/${pkg}
-cd src
-vcs import < ${pkg}/${pkg}.repos
-cd ..
-```
-
-### configure and build on ROS1:
-
-```
-catkin config -DCMAKE_BUILD_TYPE=RelWithDebInfo  # (optionally add -DCMAKE_EXPORT_COMPILE_COMMANDS=1)
-catkin build
-```
-
-### configure and build on ROS2:
-
-```
-cd ~/${pkg}_ws
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo  # (optionally add -DCMAKE_EXPORT_COMPILE_COMMANDS=1)
-```
+and follow the [instructions here](https://github.com/ros-misc-utilities/.github/blob/master/docs/build_ros_repository.md)
 
 ## Republish conversion nodelet
 
