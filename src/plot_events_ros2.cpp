@@ -65,8 +65,8 @@ public:
     lastTime_ = t;
   }
   void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
-  void finished() override{};
-  void rawData(const char *, size_t) override{};
+  void finished() override {}
+  void rawData(const char *, size_t) override {}
   size_t getNumEvents() const { return (numEvents_); }
 
 private:
