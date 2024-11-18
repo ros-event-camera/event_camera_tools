@@ -23,6 +23,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <vector>
 
 #include "event_camera_tools/check_endian.h"
 
@@ -64,9 +65,14 @@ static size_t processMsg(
 }
 
 static size_t process_bag(
-  const std::string & inBagName, const std::string & outBagName, const std::string & topic)
+  const std::string & inBagName, const std::string & outBagName,
+  const std::vector<std::string> & topics)
 {
-  std::cout << "reading from bag: " << inBagName << " topic: " << topic << std::endl;
+  std::cout << "reading from bag: " << inBagName << " topics: [";
+  for (const auto & topic : topics) {
+    std::cout << topic << ", ";
+  }
+  std::cout << "]" << std::endl;
   std::cout << "writing to bag: " << outBagName << std::endl;
   rosbag::Bag inBag;
   inBag.open(inBagName, rosbag::bagmode::Read);
@@ -81,17 +87,17 @@ static size_t process_bag(
   size_t numMessages(0);
   size_t numEvents(0);
   for (const rosbag::MessageInstance & m : view) {
-    if (m.getTopic() == topic) {
+    if (std::find(topics.begin(), topics.end(), m.getTopic()) != topics.end()) {
       dvs_msgs::EventArray::ConstPtr dvs = m.instantiate<dvs_msgs::EventArray>();
       if (dvs) {
-        numEvents += processMsg<dvs_msgs::EventArray>(dvs, topic, &outBag, encoder.get());
+        numEvents += processMsg<dvs_msgs::EventArray>(dvs, m.getTopic(), &outBag, encoder.get());
         numMessages++;
       } else {
         prophesee_event_msgs::EventArray::ConstPtr proph =
           m.instantiate<prophesee_event_msgs::EventArray>();
         if (proph) {
           numEvents +=
-            processMsg<prophesee_event_msgs::EventArray>(proph, topic, &outBag, encoder.get());
+            processMsg<prophesee_event_msgs::EventArray>(proph, m.getTopic(), &outBag, encoder.get());
           numMessages++;
         }
       }
@@ -110,8 +116,8 @@ int main(int argc, char ** argv)
   ros::Time::init();
   std::string inBag;
   std::string outBag;
-  std::string topic("/event_camera/events");
-  while ((opt = getopt(argc, argv, "b:o:t:")) != -1) {
+  std::vector<std::string> topics;
+  while ((opt = getopt(argc, argv, "b:o:t")) != -1) {
     switch (opt) {
       case 'b':
         inBag = optarg;
@@ -120,7 +126,10 @@ int main(int argc, char ** argv)
         outBag = optarg;
         break;
       case 't':
-        topic = optarg;
+        while (optind < argc && argv[optind][0] != '-') {
+          topics.emplace_back(argv[optind]);
+          optind++;
+        }
         break;
       default:
         std::cout << "unknown option: " << opt << std::endl;
@@ -136,7 +145,7 @@ int main(int argc, char ** argv)
   }
   const auto start = std::chrono::high_resolution_clock::now();
 
-  const size_t numEvents = event_camera_tools::process_bag(inBag, outBag, topic);
+  const size_t numEvents = event_camera_tools::process_bag(inBag, outBag, topics);
 
   const auto end = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

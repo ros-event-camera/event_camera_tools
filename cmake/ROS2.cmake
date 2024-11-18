@@ -62,6 +62,7 @@ ament_auto_add_executable(perf  src/perf_ros2.cpp)
 # -------- conversion tools
 ament_auto_add_executable(bag_to_raw src/bag_to_raw_ros2.cpp)
 ament_auto_add_executable(raw_to_bag src/raw_to_bag_ros2.cpp)
+ament_auto_add_executable(legacy_to_bag src/legacy_to_bag_ros2.cpp)
 
 # -------- movie maker
 ament_auto_add_executable(movie_maker  src/movie_maker_ros2.cpp)
@@ -90,6 +91,7 @@ install(TARGETS
   sync_test
   bag_to_raw
   raw_to_bag
+  legacy_to_bag
   movie_maker
   plot_events
   find_trigger_events
