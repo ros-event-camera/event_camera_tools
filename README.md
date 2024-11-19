@@ -89,9 +89,8 @@ All tools are provided in ROS and ROS2 (syntax below is for ROS):
 - ``rosrun event_camera_tools movie_maker -f <fps> -b <bag_name> -t <topic>``
 
   produces sequence of frame images.
-## ROS1 only tools:
 
-- ``rosrun event_camera_tools legacy_to_bag -t <topic> -b <input_bag_file> -o <output_bag_file>``
+- ``rosrun event_camera_tools legacy_to_bag -b <input_bag_file> -o <output_bag_file> -t <topic1> [topic2 topic3 ...]``
 
   Converts bags with DVS or Prophesee messages to evt3 event_camera_msgs.
 
