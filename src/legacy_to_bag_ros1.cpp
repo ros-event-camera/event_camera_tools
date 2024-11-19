@@ -83,22 +83,24 @@ static size_t process_bag(
     std::cerr << "evt3 codec not supported by encoder!" << std::endl;
     throw(std::runtime_error("evt3 unsupported!"));
   }
-  rosbag::View view(inBag, rosbag::TopicQuery({topic}));
   size_t numMessages(0);
   size_t numEvents(0);
-  for (const rosbag::MessageInstance & m : view) {
-    if (std::find(topics.begin(), topics.end(), m.getTopic()) != topics.end()) {
-      dvs_msgs::EventArray::ConstPtr dvs = m.instantiate<dvs_msgs::EventArray>();
-      if (dvs) {
-        numEvents += processMsg<dvs_msgs::EventArray>(dvs, m.getTopic(), &outBag, encoder.get());
-        numMessages++;
-      } else {
-        prophesee_event_msgs::EventArray::ConstPtr proph =
-          m.instantiate<prophesee_event_msgs::EventArray>();
-        if (proph) {
-          numEvents +=
-            processMsg<prophesee_event_msgs::EventArray>(proph, m.getTopic(), &outBag, encoder.get());
+  for (const auto & topic : topics) {
+    rosbag::View view(inBag, rosbag::TopicQuery({topic}));
+    for (const rosbag::MessageInstance & m : view) {
+      if (std::find(topics.begin(), topics.end(), m.getTopic()) != topics.end()) {
+        dvs_msgs::EventArray::ConstPtr dvs = m.instantiate<dvs_msgs::EventArray>();
+        if (dvs) {
+          numEvents += processMsg<dvs_msgs::EventArray>(dvs, m.getTopic(), &outBag, encoder.get());
           numMessages++;
+        } else {
+          prophesee_event_msgs::EventArray::ConstPtr proph =
+            m.instantiate<prophesee_event_msgs::EventArray>();
+          if (proph) {
+            numEvents += processMsg<prophesee_event_msgs::EventArray>(
+              proph, m.getTopic(), &outBag, encoder.get());
+            numMessages++;
+          }
         }
       }
     }
