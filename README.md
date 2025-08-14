@@ -37,7 +37,7 @@ roslaunch event_camera_tools republish_nodelet.launch camera:=event_camera messa
 
 All tools are provided in ROS and ROS2 (syntax below is for ROS):
 
-- ``rosrun event_camera_tools echo [-b <bag>] <topic>``: displays messages in
+- ``rosrun event_camera_tools echo [-b <bag>] [-n (no header printed)] <topic>``: displays messages in
   ``event_camera_msgs`` format, optionally from a bag file. Example output:
   ```
   -------------------------------
