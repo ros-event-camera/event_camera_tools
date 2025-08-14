@@ -41,6 +41,7 @@ using event_camera_codecs::EventPacket;
 class Echo : public event_camera_codecs::EventProcessor
 {
 public:
+  explicit Echo(bool printHeaders) : printHeaders_(printHeaders) {}
   // ---------- from the EventProcessor interface:
   void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
@@ -66,12 +67,14 @@ public:
 
   void eventMsg(EventPacket::ConstSharedPtr msg)
   {
-    printf("-------------------------------\n");
-    printf("width: %4d  height: %4d enc: %s\n", msg->width, msg->height, msg->encoding.c_str());
-    printf("header stamp: %8" PRIu64 "\n", rclcpp::Time(msg->header.stamp).nanoseconds());
-    printf("time base: %8" PRIu64 "\n", msg->time_base);
-    printf("seqno: %8" PRIu64 "\n", msg->seq);
-    printf("---\n");
+    if (printHeaders_) {
+      printf("-------------------------------\n");
+      printf("width: %4d  height: %4d enc: %s\n", msg->width, msg->height, msg->encoding.c_str());
+      printf("header stamp: %8" PRIu64 "\n", rclcpp::Time(msg->header.stamp).nanoseconds());
+      printf("time base: %8" PRIu64 "\n", msg->time_base);
+      printf("seqno: %8" PRIu64 "\n", msg->seq);
+      printf("---\n");
+    }
 
     auto decoder = decoderFactory_.getInstance(msg->encoding, msg->width, msg->height);
     if (!decoder) {
@@ -93,6 +96,7 @@ private:
   size_t numTrigEvents_[2]{0, 0};
   uint64_t cdStamps_[2]{0, 0};
   uint64_t trigStamps_[2]{0, 0};
+  bool printHeaders_{false};
 };
 
 class EchoNode : public rclcpp::Node
@@ -137,8 +141,9 @@ int main(int argc, char ** argv)
 
   std::string topic;
   std::string bagFile;
+  bool printHeaders(true);
   rclcpp::init(argc, argv);
-  while ((opt = getopt(argc, argv, "b:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:n")) != -1) {
     switch (opt) {
       case 'b':
         bagFile = optarg;
@@ -146,6 +151,9 @@ int main(int argc, char ** argv)
       case 'h':
         usage();
         return (-1);
+        break;
+      case 'n':
+        printHeaders = false;
         break;
       default:
         std::cout << "unknown option: " << opt << std::endl;
@@ -160,7 +168,7 @@ int main(int argc, char ** argv)
     return (-1);
   }
   topic = argv[optind];
-  Echo echo;
+  Echo echo(printHeaders);
   if (bagFile.empty()) {
     auto node = std::make_shared<EchoNode>(rclcpp::NodeOptions(), topic, &echo);
     rclcpp::spin(node);  // should not return
