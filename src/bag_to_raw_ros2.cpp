@@ -80,7 +80,6 @@ static size_t process_bag(
   out.open(outFile, std::ios::out | std::ios::binary);
   out.write(header.c_str(), header.size());
   size_t numBytes(0);
-  size_t numMessages(0);
   {
     rosbag2_cpp::Reader reader;
     reader.open(inFile);
@@ -94,7 +93,6 @@ static size_t process_bag(
         serialization.deserialize_message(&serializedMsg, &m);
         numBytes +=
           write(out, &m.events[0], m.events.size(), m.time_base, m.encoding, &last_evt_stamp);
-        numMessages++;
       }
     }
   }  // close reader when out of scope
