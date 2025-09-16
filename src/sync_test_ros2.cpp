@@ -21,6 +21,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <unordered_map>
+#include <inttypes.h>
 
 void usage()
 {
@@ -91,7 +92,7 @@ private:
       const auto count = count_[0] + count_[1];
       const double avg = sumOfDiffs_ / count;
       const double shift[2] = {baseVsStampShift_[0] / count, baseVsStampShift_[1] / count};
-      printf("avg sensor diff: %8.5lfs, count: %5llu, ", avg, count);
+      printf("avg sensor diff: %8.5lfs, count: %" PRIu64 "\n", avg, count);
       printf("base-stamp shift:  [0]: %8.5lfs, [1]: %8.5lfs\n", shift[0], shift[1]);
     } else {
       RCLCPP_WARN_STREAM(
