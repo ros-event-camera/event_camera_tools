@@ -15,13 +15,13 @@
 
 #include <event_camera_codecs/decoder_factory.h>
 #include <event_camera_codecs/event_processor.h>
+#include <inttypes.h>
 
 #include <event_camera_msgs/msg/event_packet.hpp>
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
 #include <unordered_map>
-#include <inttypes.h>
 
 void usage()
 {

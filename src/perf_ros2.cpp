@@ -15,6 +15,7 @@
 
 #include <event_camera_codecs/decoder_factory.h>
 #include <event_camera_codecs/event_processor.h>
+#include <inttypes.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -22,7 +23,6 @@
 #include <fstream>
 #include <rclcpp/rclcpp.hpp>
 #include <unordered_map>
-#include <inttypes.h>
 
 void usage()
 {
