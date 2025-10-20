@@ -78,20 +78,26 @@ public:
 
   void processRawData(const char * data, size_t len)
   {
-    uint64_t sensorTime(0);
+    uint64_t sensorTime(0), lastSensorTime(0);
     const bool hasValidSensorTime = decoder_->summarize(
-      reinterpret_cast<const uint8_t *>(data), len, &sensorTime, &lastSensorTime_, numEvents_);
-
+      reinterpret_cast<const uint8_t *>(data), len, &sensorTime, &lastSensorTime, numEvents_);
     if (!hasValidRosTime_) {
       startRosTime_ = initialRosTime_;
+      previousSensorTime_ = sensorTime;
       if (hasValidSensorTime) {
         startSensorTime_ = sensorTime;
         hasValidRosTime_ = true;
+        std::cout << "starting with sensor time: " << sensorTime
+                  << " and ros time: " << startRosTime_.nanoseconds() * 1e-9 << std::endl;
       } else {
         std::cout << "skipping raw packet at beginning without time stamp!" << std::endl;
         return;
       }
     }
+    std::cout << sensorTime * 1e-9
+              << " new sensor time packet duration: " << (lastSensorTime - sensorTime) * 1e-9
+              << " vs gap: " << (sensorTime - previousSensorTime_) * 1e-9 << std::endl;
+    previousSensorTime_ = sensorTime;
     msg_.header.stamp =
       startRosTime_ + rclcpp::Duration(std::chrono::nanoseconds(sensorTime - startSensorTime_));
     msg_.events.clear();  // remove marker
@@ -123,7 +129,7 @@ private:
   rclcpp::Time startRosTime_;
   rclcpp::Time initialRosTime_;
   uint64_t startSensorTime_{0};
-  uint64_t lastSensorTime_{0};
+  uint64_t previousSensorTime_{0};
 };
 
 static void skip_header(std::fstream & in)
