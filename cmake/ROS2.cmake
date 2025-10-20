@@ -27,6 +27,8 @@ else()
   message(ERROR "ROS_DISTRO environment variable is not set!")
 endif()
 
+add_definitions(-DRESCALE)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
@@ -68,6 +70,9 @@ ament_auto_add_executable(legacy_to_bag src/legacy_to_bag_ros2.cpp)
 ament_auto_add_executable(movie_maker  src/movie_maker_ros2.cpp)
 target_link_libraries(movie_maker opencv_core opencv_imgcodecs)
 
+# -------- event statistics
+ament_auto_add_executable(event_statistics  src/event_statistics.cpp)
+
 # -------- plot events
 ament_auto_add_executable(plot_events  src/plot_events_ros2.cpp)
 
@@ -94,6 +99,7 @@ install(TARGETS
   legacy_to_bag
   movie_maker
   plot_events
+  event_statistics
   find_trigger_events
   republish_node
   DESTINATION lib/${PROJECT_NAME}/)
