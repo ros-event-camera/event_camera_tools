@@ -88,10 +88,10 @@ ros2 launch event_camera_tools republish_composable.launch.py camera:=event_came
 
   Converts bags with evt3 event_camera_msgs to raw file. The ``camera_type`` argument is necessary to produce a valid header for
   the raw file.
-- ``ros2 run event_camera_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -B <buffer_size>``
+- ``ros2 run event_camera_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -p <packet_duration_ms>``
 
-  Converts raw file into bag with evt3 event_camera_msgs. The buffer
-  size determines the size and number of ROS messages in the bag.
+  Converts raw file into bag with evt3 event_camera_msgs. The ``packet_duration_ms`` gives the time slice (in  milliseconds) per ROS packet. The default is 10ms. Choose this parameter smaller to get lower processing latencies.
+
 - ``ros2 run event_camera_tools movie_maker -f <fps> -b <bag_name> -t <topic>``
 
   Produces sequence of frame images.
@@ -116,14 +116,14 @@ ros2 launch event_camera_tools republish_composable.launch.py camera:=event_came
 
   The ROS and sensor times of the first trigger event serve as inputs for [image reconstruction tools](https://github.com/berndpfrommer/simple_image_recon) such as ``bag_to_frames``.
 
-- ``ros2 run event_camera_tools plot_events -b name_of_bag -o name_of_plot_file -t <topic>``
+- ``ros2 run event_camera_tools plot_events -b name_of_bag -o name_of_plot_file -t <topic> [-z]``
 
-  Creates file with 4 columns (time, x, y, polarity) for plotting. Also useful for clear text viewing of events in bag file.
+  Creates file with 5 columns (sensor time, ros time, x, y, polarity) for plotting. Also useful for clear text viewing of events in bag file.
 
 - ``ros2 run event_camera_tools event_statics -b name_of_bag -t <topic> [-s <scale_file>]``
 
-  Computes the per-pixel number of ON and OFF events in a bag and writes them to ``scale_file.txt`` (default). The file has alternatingly the number of OFF and ON
-  events in row major order, with line breaks after each row.
+  Computes the per-pixel number of ON and OFF events in a bag and writes them to ``scale_file.txt`` (default).
+  The file has alternatingly the number of OFF and ON events in row major order, with line breaks after each row.
 
 ## License
 
