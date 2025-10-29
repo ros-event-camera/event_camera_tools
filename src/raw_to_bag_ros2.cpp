@@ -36,21 +36,20 @@ void usage()
 {
   std::cout << "usage:" << std::endl;
   std::cout << "raw_to_bag -b name_of_bag_file -i name_of_raw_file -t topic -f "
-               "frame_id -w width -h height -B buf_size [-T start_time(UTC sec)]"
+               "frame_id -w width -h height [-p packet_period] [-T start_time(UTC sec)]"
             << std::endl;
 }
-
 namespace event_camera_tools
 {
 using event_camera_codecs::EventPacket;
 
-class MessageUpdaterEvt3
+class MessageUpdaterEvt3 : public event_camera_codecs::EventProcessor
 {
 public:
   explicit MessageUpdaterEvt3(
     const std::string & bagName, const std::string & topic, const std::string & frameId,
-    uint32_t width, uint32_t height, rclcpp::Time initialTime)
-  : topic_(topic), initialRosTime_(initialTime)
+    uint32_t width, uint32_t height, uint64_t framePeriod, rclcpp::Time initialTime)
+  : topic_(topic), startRosTime_(initialTime), framePeriod_(framePeriod)
   {
     writer_ = std::make_unique<rosbag2_cpp::Writer>();
     writer_->open(bagName);
@@ -73,48 +72,84 @@ public:
       throw(std::runtime_error("evt3 not supported!"));
     }
   }
+  void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
+  {
+    numEvents_[polarity]++;
+    (void)sensor_time;
+    (void)ex;
+    (void)ey;
+    (void)polarity;
+  }
+
+  void eventExtTrigger(uint64_t sensor_time, uint8_t, uint8_t) override { (void)sensor_time; }
+  void finished() override {}
+  void rawData(const char *, size_t) override {}
 
   ~MessageUpdaterEvt3() { writer_.reset(); }
 
-  void processRawData(const char * data, size_t len)
+  bool findFirstSensorTime(const uint8_t * data, size_t len)
   {
-    uint64_t sensorTime(0), lastSensorTime(0);
-    const bool hasValidSensorTime = decoder_->summarize(
-      reinterpret_cast<const uint8_t *>(data), len, &sensorTime, &lastSensorTime, numEvents_);
-    if (!hasValidRosTime_) {
-      startRosTime_ = initialRosTime_;
-      previousSensorTime_ = sensorTime;
-      if (hasValidSensorTime) {
-        startSensorTime_ = sensorTime;
-        hasValidRosTime_ = true;
-        std::cout << "starting with sensor time: " << sensorTime
-                  << " and ros time: " << startRosTime_.nanoseconds() * 1e-9 << std::endl;
-      } else {
-        std::cout << "skipping raw packet at beginning without time stamp!" << std::endl;
+    auto decoder = decoderFactory_.newInstance("evt3");
+    decoder->setGeometry(msg_.width, msg_.height);
+    return (decoder->findFirstSensorTime(data, len, &firstSensorTime_));
+  }
+
+  size_t writeMessage(const uint8_t * buffer, const size_t oldOffset, uint64_t frameTime)
+  {
+    const size_t newOffset = decoder_->getNumberOfBytesUsed();
+    if (newOffset > oldOffset) {
+      msg_.events.insert(msg_.events.end(), buffer + oldOffset, buffer + newOffset);
+      rclcpp::Serialization<EventPacket> serialization;
+#ifdef USE_OLD_ROSBAG_API
+      rclcpp::SerializedMessage serialized_msg;
+      serialization.serialize_message(&msg_, &serialized_msg);
+#else
+      auto serialized_msg = std::make_shared<rclcpp::SerializedMessage>();
+      serialization.serialize_message(&msg_, serialized_msg.get());
+#endif
+      writer_->write(
+        serialized_msg, topic_, "event_camera_msgs/msg/EventPacket",
+        rclcpp::Time(msg_.header.stamp));
+      msg_.events.clear();
+      msg_.seq++;
+      // set the header stamp for the next message based on what time we have now.
+      msg_.header.stamp =
+        startRosTime_ + rclcpp::Duration(std::chrono::nanoseconds(frameTime - firstSensorTime_));
+
+      headerSensorTime_ = frameTime;
+    }
+    return (newOffset);
+  }
+
+  void processRawData(const uint8_t * data, size_t len)
+  {
+    if (!hasValidSensorTime_) {
+      if (!findFirstSensorTime(data, len)) {
+        std::cout << "WARNING: packet skipped because no event time found!" << std::endl;
         return;
       }
+      hasValidSensorTime_ = true;
+      currentTime_ = firstSensorTime_;
+      msg_.header.stamp = startRosTime_;
+      nextFrameTime_ = currentTime_ + framePeriod_;
+      std::cout << "start ros time: " << startRosTime_.nanoseconds()
+                << " first sensor time: " << firstSensorTime_ << std::endl;
     }
-    std::cout << sensorTime * 1e-9
-              << " new sensor time packet duration: " << (lastSensorTime - sensorTime) * 1e-9
-              << " vs gap: " << (sensorTime - previousSensorTime_) * 1e-9 << std::endl;
-    previousSensorTime_ = sensorTime;
-    msg_.header.stamp =
-      startRosTime_ + rclcpp::Duration(std::chrono::nanoseconds(sensorTime - startSensorTime_));
-    msg_.events.clear();  // remove marker
-    msg_.events.insert(msg_.events.end(), data, data + len);
-
-    rclcpp::Serialization<EventPacket> serialization;
-#ifdef USE_OLD_ROSBAG_API
-    rclcpp::SerializedMessage serialized_msg;
-    serialization.serialize_message(&msg_, &serialized_msg);
-#else
-    auto serialized_msg = std::make_shared<rclcpp::SerializedMessage>();
-    serialization.serialize_message(&msg_, serialized_msg.get());
-#endif
-    writer_->write(
-      serialized_msg, topic_, "event_camera_msgs/msg/EventPacket", rclcpp::Time(msg_.header.stamp));
-    msg_.events.clear();  // mark as new
-    msg_.seq++;
+    for (size_t offset = 0; offset < len;) {  // must consume entire buffer
+      uint64_t nextTime{0};
+      const bool timeLimitReached =
+        decoder_->decodeUntil(data, len, this, nextFrameTime_, 0ULL, &nextTime);
+      if (!timeLimitReached) {  // buffer completely consumed!
+        // add data buffer to current message and be done
+        msg_.events.insert(msg_.events.end(), data + offset, data + len);
+        return;
+      } else {
+        currentTime_ = nextTime;  // only valid when time limit is reached!
+        offset = writeMessage(data, offset, currentTime_);
+        nextFrameTime_ += framePeriod_;
+      }
+    }
+    throw(std::runtime_error("internal bug: should not reach this location ever!"));
   }
   const size_t * getNumEvents() const { return (numEvents_); }
 
@@ -123,13 +158,16 @@ private:
   EventPacket msg_;
   std::string topic_;
   size_t numEvents_[2]{0, 0};
-  event_camera_codecs::DecoderFactory<EventPacket> decoderFactory_;
-  event_camera_codecs::Decoder<EventPacket> * decoder_;
+  event_camera_codecs::DecoderFactory<EventPacket, MessageUpdaterEvt3> decoderFactory_;
+  event_camera_codecs::Decoder<EventPacket, MessageUpdaterEvt3> * decoder_;
   bool hasValidRosTime_{false};
   rclcpp::Time startRosTime_;
-  rclcpp::Time initialRosTime_;
-  uint64_t startSensorTime_{0};
-  uint64_t previousSensorTime_{0};
+  bool hasValidSensorTime_{false};
+  uint64_t currentTime_{0};
+  uint64_t firstSensorTime_{0};
+  uint64_t nextFrameTime_{0};
+  uint64_t framePeriod_{0};
+  uint64_t headerSensorTime_{0};  // XXX debug
 };
 
 static void skip_header(std::fstream & in)
@@ -153,15 +191,19 @@ int main(int argc, char ** argv)
   std::string frameId("event_camera");
   int height(0);
   int width(0);
-  int bufSize(150000);
+  const int bufSize(1000000);
+  double packetDurationMillis(10);
   double startTimeSec{-1.0};
-  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:B:T:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:T:p:")) != -1) {
     switch (opt) {
       case 'b':
         outFile = optarg;
         break;
       case 'i':
         inFile = optarg;
+        break;
+      case 'p':
+        packetDurationMillis = std::stod(optarg);
         break;
       case 't':
         topic = optarg;
@@ -174,9 +216,6 @@ int main(int argc, char ** argv)
         break;
       case 'h':
         height = atoi(optarg);
-        break;
-      case 'B':
-        bufSize = 2 * atoi(optarg);  // event has 2 bytes!
         break;
       case 'T':
         startTimeSec = std::stod(optarg);
@@ -199,9 +238,9 @@ int main(int argc, char ** argv)
     return (-1);
   }
   const auto start = std::chrono::high_resolution_clock::now();
-
+  const uint64_t framePeriod = static_cast<uint64_t>(packetDurationMillis * 1000000);
   event_camera_tools::MessageUpdaterEvt3 updater(
-    outFile, topic, frameId, width, height,
+    outFile, topic, frameId, width, height, framePeriod,
     startTimeSec < 0 ? rclcpp::Clock().now()
                      : rclcpp::Time(static_cast<uint64_t>(startTimeSec * 1e9)));
   std::fstream in;
@@ -216,7 +255,7 @@ int main(int argc, char ** argv)
   while (true) {
     in.read(&(buffer[0]), buffer.size());
     if (in.gcount() != 0) {
-      updater.processRawData(reinterpret_cast<char *>(&buffer[0]), in.gcount());
+      updater.processRawData(reinterpret_cast<const uint8_t *>(&buffer[0]), in.gcount());
     }
     bytesRead += in.gcount();
     if (in.gcount() < std::streamsize(buffer.size())) {
