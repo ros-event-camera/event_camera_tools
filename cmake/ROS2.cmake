@@ -43,6 +43,7 @@ set(ROS2_DEPENDENCIES
   "prophesee_event_msgs"
   "event_camera_msgs"
   "event_camera_codecs"
+  "rosbag2_storage"
   "rosbag2_cpp")
 
 foreach(pkg ${ROS2_DEPENDENCIES})
@@ -51,6 +52,9 @@ endforeach()
 
 ament_auto_find_build_dependencies(REQUIRED ${ROS2_DEPENDENCIES})
 
+if(${rosbag2_storage_VERSION} VERSION_GREATER_EQUAL "0.26.1")
+  add_definitions(-DUSE_ROSBAG2_STORAGE_RECV_TIME)
+endif()
 
 # --------- sync test
 ament_auto_add_executable(sync_test  src/sync_test_ros2.cpp)
