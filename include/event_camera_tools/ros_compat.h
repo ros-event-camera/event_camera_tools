@@ -17,12 +17,12 @@
 #define EVENT_CAMERA_TOOLS__ROS_COMPAT_H_
 
 #ifdef USING_ROS_1
-#include <ros/ros.h>
 #include <event_camera_msgs/EventPacket.h>
+#include <ros/ros.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #else
-#include <rclcpp/rclcpp.hpp>
+#include <event_camera_msgs/msg/event_packet.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
 #include <rclcpp/serialized_message.hpp>
@@ -30,7 +30,6 @@
 #include <rosbag2_cpp/writer.hpp>
 #include <rosbag2_cpp/writers/sequential_writer.hpp>
 #include <rosbag2_storage/serialized_bag_message.hpp>
-#include <event_camera_msgs/msg/event_packet.hpp>
 #endif
 
 namespace ros_compat
@@ -39,21 +38,14 @@ namespace ros_compat
 //
 // ------------------ ROS1 ---------------------
 //
-  using Time = ros::Time;
-  using Duration = ros::Duration;
-  using Writer = rosbag::Bag;
-  Time now() {
-    return (ros::Time::now());
-  }
-  Time time_from_sec(const double sec) {
-    return (Time(sec));
-  }
+using Time = ros::Time;
+using Duration = ros::Duration;
+using Writer = rosbag::Bag;
+Time now() { return (ros::Time::now()); }
+Time time_from_sec(const double sec) { return (Time(sec)); }
 
 uint64_t to_nanoseconds(const Time & t) { return (t.toNSec()); }
-Duration duration_from_nanoseconds(uint64_t nsec)
-{
-  return (Duration().fromNSec(nsec));
-}
+Duration duration_from_nanoseconds(uint64_t nsec) { return (Duration().fromNSec(nsec)); }
 
 #else
 //
@@ -63,17 +55,10 @@ using Time = rclcpp::Time;
 using Duration = rclcpp::Duration;
 using Writer = rosbag2_cpp::Writer;
 
-  Time now() {
-    return (rclcpp::Clock().now());
-  }
-  Time time_from_sec(const double sec) {
-    return (ROSTime(static_cast<uint64_t>(sec * 1e9)));
-  }
+Time now() { return (rclcpp::Clock().now()); }
+Time time_from_sec(const double sec) { return (Time(static_cast<uint64_t>(sec * 1e9))); }
 uint64_t to_nanoseconds(const Time & t) { return (t.nanoseconds()); }
-Duration duration_from_nanoseconds(uint64_t nsec)
-{
-  return (rclcpp::Duration::from_nanoseconds(nsec));
-}
+Duration duration_from_nanoseconds(uint64_t nsec) { return (Duration::from_nanoseconds(nsec)); }
 #endif
 }  // namespace ros_compat
 #endif  // EVENT_CAMERA_TOOLS__ROS_COMPAT_H_
