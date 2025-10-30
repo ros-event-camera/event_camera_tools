@@ -21,16 +21,9 @@
 #include <unistd.h>
 
 #include <chrono>
-#include <event_camera_msgs/EventPacket.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <assert.h>
-#include <event_camera_codecs/decoder.h>
-#include <event_camera_codecs/decoder_factory.h>
-#include <event_camera_tools/check_endian.h>
-#include <unistd.h>
-
 
 void usage()
 {
@@ -54,9 +47,9 @@ public:
     writer_ = std::make_unique<ros_compat::Writer>();
 #ifdef USING_ROS_1
     writer_->open(bagName, rosbag::bagmode::Write);
-#else    
+#else
     writer_->open(bagName);
-#endif    
+#endif
     createTopic(topic);
     msg_.header.frame_id = frameId;
     msg_.width = width;
@@ -70,16 +63,17 @@ public:
       throw(std::runtime_error("evt3 not supported!"));
     }
   }
-  void createTopic(const std::string &topic) {
+  void createTopic(const std::string & topic)
+  {
 #ifdef USING_ROS_1
     (void)topic;
-#else    
+#else
     struct rosbag2_storage::TopicMetadata md;
     md.name = topic;
     md.type = "event_camera_msgs/msg/EventPacket";
     md.serialization_format = rmw_get_serialization_format();
     writer_->create_topic(md);
-#endif    
+#endif
   }
   void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
@@ -94,8 +88,7 @@ public:
   void finished() override {}
   void rawData(const char *, size_t) override {}
 
-  ~MessageUpdaterEvt3() {
-    writer_.reset(); }
+  ~MessageUpdaterEvt3() { writer_.reset(); }
 
   bool findFirstSensorTime(const uint8_t * data, size_t len)
   {
@@ -119,22 +112,23 @@ public:
     }
     return (newOffset);
   }
-  void doWrite() {
+  void doWrite()
+  {
 #ifdef USING_ROS_1
-      writer_->write(topic_, msg_.header.stamp, msg_);
-#else    
-      rclcpp::Serialization<EventPacket> serialization;
-#ifdef USE_OLD_ROSBAG_API
-      rclcpp::SerializedMessage serialized_msg;
-      serialization.serialize_message(&msg_, &serialized_msg);
+    writer_->write(topic_, msg_.header.stamp, msg_);
 #else
-      auto serialized_msg = std::make_shared<rclcpp::SerializedMessage>();
-      serialization.serialize_message(&msg_, serialized_msg.get());
+    rclcpp::Serialization<EventPacket> serialization;
+#ifdef USE_OLD_ROSBAG_API
+    rclcpp::SerializedMessage serialized_msg;
+    serialization.serialize_message(&msg_, &serialized_msg);
+#else
+    auto serialized_msg = std::make_shared<rclcpp::SerializedMessage>();
+    serialization.serialize_message(&msg_, serialized_msg.get());
 #endif
-      writer_->write(
-        serialized_msg, topic_, "event_camera_msgs/msg/EventPacket",
-        ros_compat::Time(msg_.header.stamp));
-#endif      
+    writer_->write(
+      serialized_msg, topic_, "event_camera_msgs/msg/EventPacket",
+      ros_compat::Time(msg_.header.stamp));
+#endif
   }
 
   void processRawData(const uint8_t * data, size_t len)
@@ -200,7 +194,7 @@ static void skip_header(std::fstream & in)
 int main(int argc, char ** argv)
 {
   int opt;
-#ifdef USING_ROS_1  
+#ifdef USING_ROS_1
   ros::Time::init();
 #endif
   std::string inFile;
@@ -210,7 +204,7 @@ int main(int argc, char ** argv)
   int height(0);
   int width(0);
   const int bufSize(1000000);
-  double packetDurationMillis(10);
+  double packetDurationMillis(1);
   double startTimeSec{-1.0};
   while ((opt = getopt(argc, argv, "b:i:t:f:h:w:T:p:")) != -1) {
     switch (opt) {

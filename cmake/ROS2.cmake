@@ -63,7 +63,7 @@ ament_auto_add_executable(perf  src/perf_ros2.cpp)
 
 # -------- conversion tools
 ament_auto_add_executable(bag_to_raw src/bag_to_raw_ros2.cpp)
-ament_auto_add_executable(raw_to_bag src/raw_to_bag_ros2.cpp)
+ament_auto_add_executable(raw_to_bag src/raw_to_bag.cpp)
 ament_auto_add_executable(legacy_to_bag src/legacy_to_bag_ros2.cpp)
 
 # -------- movie maker
