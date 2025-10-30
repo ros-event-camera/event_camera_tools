@@ -135,7 +135,11 @@ static size_t process_bag(
       EventPacket m;
       serialization.deserialize_message(&serializedMsg, &m);
       auto decoder = factory.getInstance(m);
+#ifdef USE_ROSBAG2_RECV_TIME
       plotter.setRecordingTime(rclcpp::Time(msg->recv_timestamp, RCL_SYSTEM_TIME));
+#else
+      plotter.setRecordingTime(rclcpp::Time(m.header.stamp));
+#endif
       plotter.setHeaderTime(rclcpp::Time(m.header.stamp));
       decoder->decode(m, &plotter);
       numBytes += m.events.size();
