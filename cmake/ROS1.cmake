@@ -51,7 +51,7 @@ target_link_libraries(perf ${catkin_LIBRARIES})
 
 # --------- conversion tools
 
-add_executable(raw_to_bag src/raw_to_bag_ros1.cpp)
+add_executable(raw_to_bag src/raw_to_bag_ros.cpp)
 target_link_libraries(raw_to_bag ${catkin_LIBRARIES})
 
 add_executable(bag_to_raw src/bag_to_raw_ros1.cpp)
