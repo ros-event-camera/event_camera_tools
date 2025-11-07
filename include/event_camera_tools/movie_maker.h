@@ -41,7 +41,7 @@ public:
       nextFrameTime_ += framePeriod_;
     }
   }
-  void eventExtTrigger(uint64_t, uint8_t, uint8_t) override {}
+  bool eventExtTrigger(uint64_t, uint8_t, uint8_t) override { return (true); }
   void finished() override { isFirst_ = true; }
   void rawData(const char *, size_t) override {}
   // ----------- end of inherited

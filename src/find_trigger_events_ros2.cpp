@@ -46,9 +46,10 @@ public:
       newMessageStarted_ = false;
     }
   }
-  void eventExtTrigger(uint64_t sensor_time, uint8_t, uint8_t) override
+  bool eventExtTrigger(uint64_t sensor_time, uint8_t, uint8_t) override
   {
     triggerTimes_.push_back({rosMsgTime_ + (sensor_time - sensorMsgTime_), sensor_time});
+    return (true);
   }
   void finished() override {}
   void rawData(const char *, size_t) override {}

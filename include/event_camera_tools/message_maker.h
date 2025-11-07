@@ -75,7 +75,7 @@ public:
     }
   }
 
-  void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id) override
+  bool eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id) override
   {
     if (waitForSensorTime_) {
       waitForSensorTime_ = false;
@@ -89,6 +89,7 @@ public:
       e.polarity = edge;
       triggerMsg_->events.push_back(e);
     }
+    return (true);
   }
 
   void finished() override {}
@@ -189,7 +190,7 @@ void MessageMaker<EventPacket>::eventCD(
 }
 
 template <>
-void MessageMaker<EventPacket>::eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id)
+bool MessageMaker<EventPacket>::eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id)
 {
   if (waitForSensorTime_) {
     waitForSensorTime_ = false;
@@ -199,6 +200,7 @@ void MessageMaker<EventPacket>::eventExtTrigger(uint64_t sensor_time, uint8_t ed
     const uint32_t dt = static_cast<uint32_t>(sensor_time - baseSensorTime_);
     triggerEncoder_->encodeExtTrigger(dt, edge, id);
   }
+  return (true);
 }
 
 template <>
