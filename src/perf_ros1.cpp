@@ -50,10 +50,11 @@ public:
     lastSensorTime_ = sensor_time;
     cdEvents_[std::min(uint8_t(1), p)]++;
   }
-  void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t /*id*/) override
+  bool eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t /*id*/) override
   {
     lastSensorTime_ = sensor_time;
     trEvents_[std::min(uint8_t(1), edge)]++;
+    return (true);
   }
   void finished() override {}
   void rawData(const char *, size_t) override {}

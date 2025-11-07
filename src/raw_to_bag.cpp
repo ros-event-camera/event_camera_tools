@@ -84,7 +84,7 @@ public:
     (void)polarity;
   }
 
-  void eventExtTrigger(uint64_t sensor_time, uint8_t, uint8_t) override { (void)sensor_time; }
+  bool eventExtTrigger(uint64_t, uint8_t, uint8_t) override { return (true); }
   void finished() override {}
   void rawData(const char *, size_t) override {}
 

@@ -49,7 +49,7 @@ public:
     }
     cdStamps_[1] = std::max(cdStamps_[1], sensor_time);
   }
-  void eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id) override
+  bool eventExtTrigger(uint64_t sensor_time, uint8_t edge, uint8_t id) override
   {
     printf("%8" PRIu64 " edge: %1d  id: %2d\n", sensor_time, edge, id);
     numTrigEvents_[edge]++;
@@ -57,6 +57,7 @@ public:
       trigStamps_[0] = sensor_time;
     }
     trigStamps_[1] = std::max(trigStamps_[1], sensor_time);
+    return (true);
   }
   void finished() override {}
   void rawData(const char *, size_t) override {}
