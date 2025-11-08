@@ -1,14 +1,17 @@
-# event_camera_tools
+# event\_camera\_tools
 
-This repository holds ROS2 tools for displaying and converting
-[event_camera_msgs](https://github.com/ros-event-camera/event_camera_msgs)
-under ROS2. These messages are produced by the
+This repository holds ROS tools for displaying and converting
+[event_camera_msgs](https://github.com/ros-event-camera/event_camera_msgs).
+These messages are produced by the
 [metavision_driver](https://github.com/ros-event-camera/metavision_driver) and
 the [libcaer_driver](https://github.com/ros-event-camera/libcaer_driver).
+For converting legacy [dvs\_msgs](https://github.com/ros-event-camera/dvs_msgs) and
+[prophesee\_event\_msgs](https://github.com/ros-event-camera/prophesee_event_msgs)
+messages, see the [event\_camera\_legacy\_tools](https://github.com/ros-event-camera/event_camera_legacy_tools)repository.
 
 ## Supported platforms
 
-NOTE: ROS1 support has been discontinued.
+NOTE: ROS1 support has been discontinued but the code has been left in place and may still compile.
 ROS2 is supported for ROS2 Humble and later distros.
 
 ## How to build
@@ -19,22 +22,6 @@ repo=event_camera_tools
 url=https://github.com/ros-event-camera/${repo}.git
 ```
 and follow the [instructions here](https://github.com/ros-misc-utilities/.github/blob/master/docs/build_ros_repository.md)
-
-## Republish conversion nodelet
-
-The ``republish`` node converts event_camera_msgs to legacy formats
-like dvs, prophesee, and decoded ("mono") event_camera messages. Note
-that this node will consume a significant amount of CPU
-resources and should not be run unnecessarily while recording data.
-The following command will start a conversion node to republish
-events from ``/event_camera/events`` to
-``/event_camera/republished_events`` and
-``/event_camera/republished_triggers``
-(see launch file for remapping):
-
-```bash
-ros2 launch event_camera_tools republish_composable.launch.py camera:=event_camera message_type:=event_packet
-```
 
 ## Tools
 
@@ -95,10 +82,6 @@ ros2 launch event_camera_tools republish_composable.launch.py camera:=event_came
 - ``ros2 run event_camera_tools movie_maker -f <fps> -b <bag_name> -t <topic>``
 
   Produces sequence of frame images.
-
-- ``ros2 run event_camera_tools legacy_to_bag -b <input_bag_file> -o <output_bag_file> -t <topic1> [topic2 topic3 ...]``
-
-  Converts bags with DVS or Prophesee messages to evt3 event_camera_msgs.
 
 - ``ros2 run event_camera_tools find_trigger_events -i input_bag -t <topic_with_trigger_events>``
 
