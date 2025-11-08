@@ -39,8 +39,6 @@ find_package(OpenCV REQUIRED)
 set(ROS2_DEPENDENCIES
   "rclcpp"
   "rclcpp_components"
-  "dvs_msgs"
-  "prophesee_event_msgs"
   "event_camera_msgs"
   "event_camera_codecs"
   "rosbag2_storage"
@@ -68,7 +66,6 @@ ament_auto_add_executable(perf  src/perf_ros2.cpp)
 # -------- conversion tools
 ament_auto_add_executable(bag_to_raw src/bag_to_raw_ros2.cpp)
 ament_auto_add_executable(raw_to_bag src/raw_to_bag.cpp)
-ament_auto_add_executable(legacy_to_bag src/legacy_to_bag_ros2.cpp)
 
 # -------- movie maker
 ament_auto_add_executable(movie_maker  src/movie_maker_ros2.cpp)
@@ -83,15 +80,7 @@ ament_auto_add_executable(plot_events  src/plot_events_ros2.cpp)
 # -------- find_trigger_events
 ament_auto_add_executable(find_trigger_events  src/find_trigger_events_ros2.cpp)
 
-# -------- republish node and composable
-ament_auto_add_library(republish SHARED src/republish_composable.cpp)
-target_include_directories(republish PRIVATE include)
-rclcpp_components_register_nodes(republish "event_camera_tools::RepublishComposable")
-
-ament_auto_add_executable(republish_node  src/republish_node_ros2.cpp)
-
-
-# the node must go into the paroject specific lib directory or else
+# the nodes must go into the paroject specific lib directory or else
 # the launch file will not find it
 
 install(TARGETS
@@ -100,25 +89,11 @@ install(TARGETS
   sync_test
   bag_to_raw
   raw_to_bag
-  legacy_to_bag
   movie_maker
   plot_events
   event_statistics
   find_trigger_events
-  republish_node
   DESTINATION lib/${PROJECT_NAME}/)
-
-# the shared library goes into the global lib dir so it can
-# be used as a composable node by other projects
-
-install(TARGETS
-  republish
-  DESTINATION lib)
-
-install(DIRECTORY
-  launch
-  DESTINATION share/${PROJECT_NAME}/
-  FILES_MATCHING PATTERN "*.py")
 
 if(BUILD_TESTING)
   find_package(ament_cmake REQUIRED)
@@ -126,18 +101,16 @@ if(BUILD_TESTING)
   find_package(ament_cmake_cppcheck REQUIRED)
   find_package(ament_cmake_cpplint REQUIRED)
   find_package(ament_cmake_clang_format REQUIRED)
-  find_package(ament_cmake_flake8 REQUIRED)
+  find_package(ament_cmake_black REQUIRED)
   find_package(ament_cmake_lint_cmake REQUIRED)
-  find_package(ament_cmake_pep257 REQUIRED)
-  find_package(ament_cmake_xmllint REQUIRED)
+    find_package(ament_cmake_xmllint REQUIRED)
 
   ament_copyright()
   ament_cppcheck(LANGUAGE c++)
   ament_cpplint(FILTERS "-build/include,-runtime/indentation_namespace")
   ament_clang_format(CONFIG_FILE .clang-format)
-  ament_flake8()
+  ament_black()
   ament_lint_cmake()
-  ament_pep257()
   ament_xmllint()
 endif()
 

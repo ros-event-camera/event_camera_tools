@@ -1,9 +1,0 @@
-<library path="lib/librepublish_nodelet">
-  <class name="event_camera_tools/RepublishNodelet"
-         type="event_camera_tools::RepublishNodelet"
-         base_class_type="nodelet::Nodelet">
-    <description>
-      event message type converter nodelet
-    </description>
-  </class>
-</library>
