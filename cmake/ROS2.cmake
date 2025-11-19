@@ -42,7 +42,8 @@ set(ROS2_DEPENDENCIES
   "event_camera_msgs"
   "event_camera_codecs"
   "rosbag2_storage"
-  "rosbag2_cpp")
+  "rosbag2_cpp"
+  "sensor_msgs")
 
 foreach(pkg ${ROS2_DEPENDENCIES})
   find_package(${pkg} REQUIRED)
@@ -80,6 +81,9 @@ ament_auto_add_executable(plot_events  src/plot_events_ros2.cpp)
 # -------- find_trigger_events
 ament_auto_add_executable(find_trigger_events  src/find_trigger_events_ros2.cpp)
 
+# -------- find_trigger_events
+ament_auto_add_executable(trigger_delay  src/trigger_delay.cpp)
+
 # the nodes must go into the paroject specific lib directory or else
 # the launch file will not find it
 
@@ -93,6 +97,7 @@ install(TARGETS
   plot_events
   event_statistics
   find_trigger_events
+  trigger_delay
   DESTINATION lib/${PROJECT_NAME}/)
 
 if(BUILD_TESTING)
@@ -103,7 +108,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_clang_format REQUIRED)
   find_package(ament_cmake_black REQUIRED)
   find_package(ament_cmake_lint_cmake REQUIRED)
-    find_package(ament_cmake_xmllint REQUIRED)
+  find_package(ament_cmake_xmllint REQUIRED)
 
   ament_copyright()
   ament_cppcheck(LANGUAGE c++)
