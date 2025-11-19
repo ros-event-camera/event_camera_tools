@@ -7,7 +7,8 @@ These messages are produced by the
 the [libcaer_driver](https://github.com/ros-event-camera/libcaer_driver).
 For converting legacy [dvs\_msgs](https://github.com/ros-event-camera/dvs_msgs) and
 [prophesee\_event\_msgs](https://github.com/ros-event-camera/prophesee_event_msgs)
-messages, see the [event\_camera\_legacy\_tools](https://github.com/ros-event-camera/event_camera_legacy_tools)repository.
+messages, see the [event\_camera\_legacy\_tools](https://github.com/ros-event-camera/event_camera_legacy_tools)
+repository.
 
 ## Supported platforms
 
@@ -17,15 +18,20 @@ ROS2 is supported for ROS2 Humble and later distros.
 ## How to build
 
 Set the following shell variables:
+
 ```bash
 repo=event_camera_tools
 url=https://github.com/ros-event-camera/${repo}.git
 ```
+
 and follow the [instructions here](https://github.com/ros-misc-utilities/.github/blob/master/docs/build_ros_repository.md)
 
 ## Tools
 
-- ``ros2 run event_camera_tools echo [-b <bag>] [-n (no header printed)] <topic>``  
+### Real-time monitoring tools
+
+- ``ros2 run event_camera_tools echo [-b <bag>] [-t (only triggers)] [-n (no header printed)] <topic>``  
+
   Displays messages in ``event_camera_msgs`` format, optionally from a bag file. Example output:
 
 ```text
@@ -41,7 +47,8 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   ...
 ```
 
-- ``ros2 run event_camera_tools perf <topic>``  
+- ``ros2 run event_camera_tools perf <topic>``
+
   Sample output:
 
   ```text
@@ -61,7 +68,9 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   - ``%ON`` ratio of ON events to total (ON + OFF) events
   - ``tr`` rate of trigger messages
   - ``%UP`` ratio of UP trigger edges to total (UP + DOWN)
+
 - ``ros2 run event_camera_tools sync_test <cam_0_event_topic> <cam_1_event_topic>``
+
   The output gives the average sensor time difference and how many
   samples where counted:
 
@@ -70,6 +79,21 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   avg sensor diff:  0.00377s, count:   466
   ...
   ```
+
+- ``ros2 run event_camera_tools trigger_delay -t <camera_image_topic> [-d (use down trigger edge)] <event_topic>``
+
+  Use this tool to verify synchronization setup when the sync pulse from a frame based camera is connected to
+  an event camera. The tool compares the time stamp of the trigger event with that of the image frame, and
+  gives the time by which the trigger event is delayed with respect to the frame. This time is usually negative,
+  meaning the trigger event occurs before the frame based camera driver puts a header stamp on the image. A typical
+  output will look like this:
+
+  ```text
+  [INFO] [1763569527.811228122] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.531 ms
+  [INFO] [1763569528.811002310] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.868 ms
+  ```
+
+### Recorded data analysis tools
 
 - ``ros2 run event_camera_tools bag_to_raw -t <topic> -b <bag_name> -o <outout_raw_file> -c <camera_type>``
 
@@ -97,7 +121,7 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   processed 202 number of messages
   ```
 
-  The ROS and sensor times of the first trigger event serve as inputs for [image reconstruction tools](https://github.com/berndpfrommer/simple_image_recon) such as ``bag_to_frames``.
+  The ROS and sensor times of the first trigger event serve as inputs for [image reconstruction tools](https://github.com/ros-event-camera/event_image_reconstruction_fibar) such as ``bag_to_frames``.
 
 - ``ros2 run event_camera_tools plot_events -b name_of_bag -o name_of_plot_file -t <topic> [-z]``
 

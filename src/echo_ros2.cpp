@@ -32,7 +32,7 @@
 void usage()
 {
   std::cout << "usage:" << std::endl;
-  std::cout << "echo [-b bag] <ros_topic>" << std::endl;
+  std::cout << "echo [-b bag] [-n (no headers)] [-t (triggers only)] <ros_topic>" << std::endl;
 }
 
 using event_camera_codecs::Decoder;
@@ -41,11 +41,16 @@ using event_camera_codecs::EventPacket;
 class Echo : public event_camera_codecs::EventProcessor
 {
 public:
-  explicit Echo(bool printHeaders) : printHeaders_(printHeaders) {}
+  explicit Echo(bool printHeaders, bool triggersOnly)
+  : printHeaders_(printHeaders), triggersOnly_(triggersOnly)
+  {
+  }
   // ---------- from the EventProcessor interface:
   void eventCD(uint64_t sensor_time, uint16_t ex, uint16_t ey, uint8_t polarity) override
   {
-    printf("%8" PRIu64 " %4d %4d %1d\n", sensor_time, ex, ey, polarity);
+    if (!triggersOnly_) {
+      printf("%8" PRIu64 " %4d %4d %1d\n", sensor_time, ex, ey, polarity);
+    }
     numCDEvents_[polarity]++;
     if (cdStamps_[0] == 0) {
       cdStamps_[0] = sensor_time;
@@ -98,6 +103,7 @@ private:
   uint64_t cdStamps_[2]{0, 0};
   uint64_t trigStamps_[2]{0, 0};
   bool printHeaders_{false};
+  bool triggersOnly_{false};
 };
 
 class EchoNode : public rclcpp::Node
@@ -143,8 +149,9 @@ int main(int argc, char ** argv)
   std::string topic;
   std::string bagFile;
   bool printHeaders(true);
+  bool triggersOnly(false);
   rclcpp::init(argc, argv);
-  while ((opt = getopt(argc, argv, "b:n")) != -1) {
+  while ((opt = getopt(argc, argv, "b:nt")) != -1) {
     switch (opt) {
       case 'b':
         bagFile = optarg;
@@ -155,6 +162,9 @@ int main(int argc, char ** argv)
         break;
       case 'n':
         printHeaders = false;
+        break;
+      case 't':
+        triggersOnly = true;
         break;
       default:
         std::cout << "unknown option: " << opt << std::endl;
@@ -169,7 +179,7 @@ int main(int argc, char ** argv)
     return (-1);
   }
   topic = argv[optind];
-  Echo echo(printHeaders);
+  Echo echo(printHeaders, triggersOnly);
   if (bagFile.empty()) {
     auto node = std::make_shared<EchoNode>(rclcpp::NodeOptions(), topic, &echo);
     rclcpp::spin(node);  // should not return
