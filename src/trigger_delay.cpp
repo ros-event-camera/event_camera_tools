@@ -93,13 +93,16 @@ public:
   }
 
   static void updateCount(
-    uint64_t t, std::list<uint64_t> * times, size_t * num, uint64_t * total_time)
+    uint64_t t, uint64_t * last_time, std::list<uint64_t> * times, size_t * num,
+    uint64_t * total_time, double * period)
   {
-    if (!times->empty()) {
-      const uint64_t dt = t - times->back();
-      *total_time += dt;
+    if (*last_time != 0) {
+      const uint64_t dt = t - *last_time;
+      *total_time += static_cast<double>(dt);
       *num = *num + 1;
+      *period = (*period == 0) ? dt : (*period * 0.9 + dt * 0.1);
     }
+    *last_time = t;
     while (times->size() >= 10) {
       times->pop_front();
     }
@@ -108,7 +111,9 @@ public:
 
   void triggerEvent(uint64_t t)
   {
-    updateCount(t, &trigger_times_, &num_triggers_, &total_trigger_time_);
+    updateCount(
+      t, &trigger_last_time_, &trigger_times_, &num_triggers_, &total_trigger_time_,
+      &trigger_period_);
     checkFramesVsTriggerEvents();
   }
 
@@ -116,31 +121,31 @@ private:
   void frameCallback(const TriggerType::ConstSharedPtr & msg)
   {
     const uint64_t t = rclcpp::Time(msg->header.stamp).nanoseconds();
-    updateCount(t, &frame_times_, &num_frames_, &total_frame_time_);
+    updateCount(
+      t, &frame_last_time_, &frame_times_, &num_frames_, &total_frame_time_, &frame_period_);
     checkFramesVsTriggerEvents();
   }
 
   void checkFramesVsTriggerEvents()
   {
+    const uint64_t period_match = static_cast<uint64_t>(trigger_period_) >> 2;
+    if (period_match == 0) {
+      RCLCPP_WARN_THROTTLE(
+        logger(), *this->get_clock(), 1000,
+        "no event triggers received yet to compute trigger period!");
+      return;
+    }
+
     for (auto t_it_loop = trigger_times_.begin(); t_it_loop != trigger_times_.end();) {
       auto t_it = t_it_loop++;
-      for (auto f_it_loop = frame_times_.begin(); f_it_loop != frame_times_.end(); ++f_it_loop) {
-        auto f_it_p2 = f_it_loop;  // p2 stands for +2, which it eventually will be
-        if (++f_it_p2 != frame_times_.end()) {
-          auto f_it_m = f_it_p2;  // frame in the middle between two others
-          if (++f_it_p2 != frame_times_.end()) {
-            if (
-              *t_it > *f_it_loop && *t_it < *f_it_p2) {  // trigger time is between two frame times
-              const int64_t dt = static_cast<int64_t>(*t_it) - static_cast<int64_t>(*f_it_m);
-              total_trigger_delay_ += dt;
-              num_trigger_delays_++;
-              // Erase old frames. Leave matched frame for finding the midpoint next time.
-              frame_times_.erase(frame_times_.begin(), f_it_m);
-              // Erase old triggers, including the current one
-              trigger_times_.erase(trigger_times_.begin(), t_it_loop);
-              break;
-            }
-          }
+      for (auto f_it_loop = frame_times_.begin(); f_it_loop != frame_times_.end();) {
+        auto f_it = f_it_loop++;
+        if ((*t_it + period_match > *f_it) && (*t_it < *f_it + period_match)) {
+          const int64_t dt = static_cast<int64_t>(*t_it) - static_cast<int64_t>(*f_it);
+          total_trigger_delay_ += dt;
+          num_trigger_delays_++;
+          frame_times_.erase(frame_times_.begin(), f_it_loop);  // does not include the stop iter!
+          trigger_times_.erase(trigger_times_.begin(), t_it_loop);
         }
       }
     }
@@ -171,11 +176,15 @@ private:
   std::list<uint64_t> frame_times_;
   std::list<uint64_t> trigger_times_;
   uint64_t total_trigger_time_{0};
+  uint64_t trigger_last_time_{0};
   size_t num_triggers_{0};
   uint64_t total_frame_time_{0};
+  uint64_t frame_last_time_{0};
   size_t num_frames_{0};
   int64_t total_trigger_delay_{0};
   size_t num_trigger_delays_{0};
+  double trigger_period_{0};
+  double frame_period_{0};
 };
 
 // must define here because of reference to TriggerDelay class
