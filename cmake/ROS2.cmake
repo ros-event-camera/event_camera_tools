@@ -16,18 +16,8 @@
 set(CMAKE_CXX_STANDARD 17)
 
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-
-# the rosbag api changed between distros
-if(DEFINED ENV{ROS_DISTRO})
-  if($ENV{ROS_DISTRO} STREQUAL "foxy" OR
-      $ENV{ROS_DISTRO} STREQUAL "galactic")
-    add_definitions(-DUSE_OLD_ROSBAG_API)
-  endif()
-else()
-  message(ERROR "ROS_DISTRO environment variable is not set!")
-endif()
-
-add_definitions(-DRESCALE)
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -61,6 +51,9 @@ ament_auto_add_executable(sync_test  src/sync_test_ros2.cpp)
 # -------- echo tool
 ament_auto_add_executable(echo  src/echo_ros2.cpp)
 
+# -------- event_rate tool
+ament_auto_add_executable(event_rate  src/event_rate.cpp)
+
 # -------- performance tool
 ament_auto_add_executable(perf  src/perf_ros2.cpp)
 
@@ -90,6 +83,7 @@ ament_auto_add_executable(trigger_delay  src/trigger_delay.cpp)
 install(TARGETS
   perf
   echo
+  event_rate
   sync_test
   bag_to_raw
   raw_to_bag

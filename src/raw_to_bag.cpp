@@ -118,13 +118,8 @@ public:
     writer_->write(topic_, msg_.header.stamp, msg_);
 #else
     rclcpp::Serialization<EventPacket> serialization;
-#ifdef USE_OLD_ROSBAG_API
-    rclcpp::SerializedMessage serialized_msg;
-    serialization.serialize_message(&msg_, &serialized_msg);
-#else
     auto serialized_msg = std::make_shared<rclcpp::SerializedMessage>();
     serialization.serialize_message(&msg_, serialized_msg.get());
-#endif
     writer_->write(
       serialized_msg, topic_, "event_camera_msgs/msg/EventPacket",
       ros_compat::Time(msg_.header.stamp));

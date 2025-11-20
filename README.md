@@ -93,6 +93,13 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   [INFO] [1763569528.811002310] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.868 ms
   ```
 
+- ``ros2 run event_camera_tools event_rate [-b bag] [-r <rate_file>] [-t <trigger_file>] [-p period_ns] <ros_topic>``
+
+  Counts the number of events in a fixed interval of length ``period`` (in nanoseconds), and writes it to ``rate_file``.
+  The first column is the ROS time stamp, the second sensor time, then the number of OFF and ON events, and the number of UP
+  and DOWN edge external trigger events. The external trigger events are also written to a separate file (``trigger_file``) with
+  the exact time stamps and whether it's an UP (1) or DOWN (0) edge. Can also operate on a rosbag if provided with the ``-b`` option.
+
 ### Recorded data analysis tools
 
 - ``ros2 run event_camera_tools bag_to_raw -t <topic> -b <bag_name> -o <outout_raw_file> -c <camera_type>``
