@@ -102,7 +102,7 @@ public:
     const double dt = (t - lastTime_).nanoseconds() * 1e-9;  // in milliseconds
     if (numMsgs_ != 0 && t_elapsed > 1e-3) {
       printf(
-        "%.0f msgs: %8.2f/s drp: %" PRIu64 "del: %5.2fms drft: %8.4fs", t_elapsed, numMsgs_ / dt,
+        "%.0f msgs: %8.2f/s drp: %" PRIu64 " del: %5.2fms drft: %8.4fs", t_elapsed, numMsgs_ / dt,
         numSeqDropped_, delay_ / (1e6 * numMsgs_), drift_ * 1e-9);
       const size_t cdTot = cdEvents_[0] + cdEvents_[1];
       if (cdTot > 0) {
