@@ -84,9 +84,8 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
 
   Use this tool to verify synchronization setup when the sync pulse from a frame based camera is connected to
   an event camera. The tool compares the time stamp of the trigger event with that of the image frame, and
-  gives the time by which the trigger event is delayed with respect to the frame. This time is usually negative,
-  meaning the trigger event occurs before the frame based camera driver puts a header stamp on the image. A typical
-  output will look like this:
+  gives the time by which the trigger event is delayed with respect to the frame.
+  This time is usually negative, meaning the trigger event occurs before the frame based camera driver puts a header stamp on the image. A typical output will look like this:
 
   ```text
   [INFO] [1763569527.811228122] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.531 ms

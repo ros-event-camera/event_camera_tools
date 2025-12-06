@@ -4,7 +4,7 @@
   <version>1.0.0</version>
   <description>package with ROS1 and ROS2 tools related to event_camera_msgs</description>
   <maintainer email="bernd.pfrommer@gmail.com">Bernd Pfrommer</maintainer>
-  <license>Apache2</license>
+  <license>Apache License 2.0</license>
 
 
   <!-- ROS2 dependencies -->
