@@ -2,8 +2,8 @@
 Changelog for package event_camera_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+3.1.1 (2025-12-08)
+------------------
 * Merge branch 'master' into release
 * added opencv dependency to package file
 * Contributors: Bernd Pfrommer
