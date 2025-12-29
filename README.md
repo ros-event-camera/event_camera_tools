@@ -52,8 +52,8 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   Sample output:
 
   ```text
-  msgs:   219.48/s drp:  0 del: 13.72ms drft: 0.0033s ev:   0.0823 M/s %ON:  46 tr:  1758.38 1/s %UP:  50
-  msgs:   249.01/s drp:  0 del:  4.35ms drft: 0.0027s ev:   0.8497 M/s %ON:  52 tr:  1999.56 1/s %UP:  49
+  msgs:   219.48/s drp:  0 del: 13.72ms drft:  0.0297ms jit:  0.3296ms ev:   0.0823 M/s %ON:  46 tr:  1758.38 1/s %UP:  50
+  msgs:   249.01/s drp:  0 del:  4.35ms drft: -0.0031ms jit:  0.2503ms ev:   0.8497 M/s %ON:  52 tr:  1999.56 1/s %UP:  49
    ```
 
   The meaning of the fields is as follows:
@@ -64,6 +64,7 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
      aggregating messages.
   - ``drft`` accumulated (from start of "perf") drift between message
      header stamp and sensor-provided time.
+  - ``jit`` measured jitter of ROS time stamps vs sensor time stamps.
   - ``ev`` event rate in millions/sec
   - ``%ON`` ratio of ON events to total (ON + OFF) events
   - ``tr`` rate of trigger messages
