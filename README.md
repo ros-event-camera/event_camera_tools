@@ -89,8 +89,8 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   This time is usually negative, meaning the trigger event occurs before the frame based camera driver puts a header stamp on the image. A typical output will look like this:
 
   ```text
-  [INFO] [1763569527.811228122] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.531 ms
-  [INFO] [1763569528.811002310] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.868 ms
+  [INFO] [1763569527.811228122] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.531 ms +/- 0.497 ms
+  [INFO] [1763569528.811002310] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.868 ms +/- 0.418 ms
   ```
 
 - ``ros2 run event_camera_tools event_rate [-b bag] [-r <rate_file>] [-t <trigger_file>] [-p period_ns] <ros_topic>``
