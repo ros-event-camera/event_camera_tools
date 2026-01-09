@@ -106,10 +106,12 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
 
   Converts bags with evt3 event_camera_msgs to raw file. The ``camera_type`` argument is necessary to produce a valid header for
   the raw file.
-- ``ros2 run event_camera_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -p <packet_duration_ms>``
+- ``ros2 run event_camera_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> [-I (ignore header)] [-w <sensor_width>] [-h <sensor_height>] -p <packet_duration_ms>``
 
   Converts raw file into bag with evt3 event_camera_msgs. The ``packet_duration_ms`` gives the time slice (in  milliseconds) per ROS packet. The default is 10ms. Choose this parameter smaller to get lower processing latencies.
-
+  Unless you pull the ``-I`` flag, the sensor geometry, the encoding, and the date/time are extracted from the header of the ``raw`` file.
+  The ROS header stamps are computed by assuming that the first event sensor time coincides with the ROS start time, and that host clock (ROS time) and sensor clock (sensor time) run at identical rates.
+  
 - ``ros2 run event_camera_tools movie_maker -f <fps> -b <bag_name> -t <topic>``
 
   Produces sequence of frame images.
