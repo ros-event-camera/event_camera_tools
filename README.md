@@ -136,10 +136,12 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
 
   Creates file with 5 columns (sensor time, ros time, x, y, polarity) for plotting. Also useful for clear text viewing of events in bag file.
 
-- ``ros2 run event_camera_tools event_statics -b name_of_bag -t <topic> [-s <scale_file>]``
+- ``ros2 run event_camera_tools event_statics -b name_of_bag -t <topic> [-s <scale_file>] [-m max_delta_time]``
 
   Computes the per-pixel number of ON and OFF events in a bag and writes them to ``scale_file.txt`` (default).
   The file has alternatingly the number of OFF and ON events in row major order, with line breaks after each row.
+  This tool also performs sanity checks: event time going backwards or time jumping forward, and that elapsed
+  host time matches elapsed sensor time.
 
 ## License
 

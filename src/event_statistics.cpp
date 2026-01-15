@@ -32,11 +32,13 @@ using event_camera_codecs::EventPacket;
 void usage()
 {
   std::cout << "usage:" << std::endl;
-  std::cout << "event_statistics -b name_of_bag_file -t topic [-s scale_file]" << std::endl;
+  std::cout << "event_statistics -b name_of_bag_file -t topic [-s scale_file] [-m max_delta_time]"
+            << std::endl;
 }
 
-static std::tuple<size_t, size_t> process_bag(
-  const std::string & inFile, const std::string & topic, const std::string & scale_file)
+static std::tuple<size_t, size_t, int64_t, int64_t> process_bag(
+  const std::string & inFile, const std::string & topic, const std::string & scale_file,
+  double max_delta_time)
 {
   size_t numBytes(0);
   event_camera_codecs::DecoderFactory<EventPacket, event_camera_tools::EventStatistics>
@@ -45,16 +47,21 @@ static std::tuple<size_t, size_t> process_bag(
   reader.open(inFile);
   rclcpp::Serialization<EventPacket> serialization;
   event_camera_tools::EventStatistics stats(scale_file);
+  stats.setMaxDeltaTime(static_cast<uint64_t>(max_delta_time * 1e9));
   rclcpp::Time t0;
   bool topic_found = false;
+  int64_t start_time = 0;
+  int64_t end_time = 0;
   while (reader.has_next()) {
     auto msg = reader.read_next();
     if (msg->topic_name == topic) {
       rclcpp::SerializedMessage serializedMsg(*msg->serialized_data);
       EventPacket m;
       serialization.deserialize_message(&serializedMsg, &m);
+      end_time = rclcpp::Time(m.header.stamp).nanoseconds();
       if (!topic_found) {
         stats.initialize(m.width, m.height);
+        start_time = end_time;
       }
       auto decoder = decoderFactory.getInstance(m.encoding, m.width, m.height);
       if (!decoder) {
@@ -70,7 +77,7 @@ static std::tuple<size_t, size_t> process_bag(
   if (!topic_found) {
     throw std::runtime_error("topic not found!");
   }
-  return {numBytes, stats.getNumEvents()};
+  return {numBytes, stats.getNumEvents(), stats.getTimePassed(), end_time - start_time};
 }
 
 int main(int argc, char ** argv)
@@ -80,7 +87,8 @@ int main(int argc, char ** argv)
   std::string bagFile;
   std::string topic("/event_camera/events");
   std::string scale_file("scale.txt");
-  while ((opt = getopt(argc, argv, "b:t:s:h")) != -1) {
+  double max_delta_time{5e-3};
+  while ((opt = getopt(argc, argv, "b:t:m:s:h")) != -1) {
     switch (opt) {
       case 'b':
         bagFile = optarg;
@@ -90,6 +98,9 @@ int main(int argc, char ** argv)
         break;
       case 's':
         scale_file = optarg;
+        break;
+      case 'm':
+        max_delta_time = std::stod(optarg);
         break;
       case 'h':
         usage();
@@ -110,9 +121,14 @@ int main(int argc, char ** argv)
   }
   std::cout << "using topic: " << topic << std::endl;
   auto start = std::chrono::high_resolution_clock::now();
-  const auto [numBytes, numEvents] = process_bag(bagFile, topic, scale_file);
+  const auto [numBytes, numEvents, duration_sensor, duration_host] =
+    process_bag(bagFile, topic, scale_file, max_delta_time);
   auto final = std::chrono::high_resolution_clock::now();
   auto total_duration = std::chrono::duration_cast<std::chrono::microseconds>(final - start);
+  std::cout << "sensor time elapsed: " << duration_sensor * 1e-9 << std::endl;
+  std::cout << "host   time elapsed: " << duration_host * 1e-9 << std::endl;
+  std::cout << "host-sensor time difference: " << (duration_host - duration_sensor) * 1e-9
+            << std::endl;
   std::cout << "number of bytes read: " << numBytes * 1e-6 << " MB in "
             << total_duration.count() * 1e-6 << " seconds" << std::endl;
   std::cout << "bytes rate: " << static_cast<double>(numBytes) / total_duration.count() << " MB/s"
