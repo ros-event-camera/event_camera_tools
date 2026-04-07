@@ -2,8 +2,8 @@
 Changelog for package event_camera_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+3.1.2 (2026-04-07)
+------------------
 * rely on event_camera_codecs and _msgs packages
 * Remove unused include of rosbag2_cpp/typesupport_helpers.hpp
   This header file was removed in Jazzy (rosbag2 release 0.26.10). Since
