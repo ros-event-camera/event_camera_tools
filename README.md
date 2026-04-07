@@ -52,8 +52,8 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   Sample output:
 
   ```text
-  msgs:   219.48/s drp:  0 del: 13.72ms drft: 0.0033s ev:   0.0823 M/s %ON:  46 tr:  1758.38 1/s %UP:  50
-  msgs:   249.01/s drp:  0 del:  4.35ms drft: 0.0027s ev:   0.8497 M/s %ON:  52 tr:  1999.56 1/s %UP:  49
+  msgs:   219.48/s drp:  0 del: 13.72ms drft:  0.0297ms jit:  0.3296ms ev:   0.0823 M/s %ON:  46 tr:  1758.38 1/s %UP:  50
+  msgs:   249.01/s drp:  0 del:  4.35ms drft: -0.0031ms jit:  0.2503ms ev:   0.8497 M/s %ON:  52 tr:  1999.56 1/s %UP:  49
    ```
 
   The meaning of the fields is as follows:
@@ -64,6 +64,7 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
      aggregating messages.
   - ``drft`` accumulated (from start of "perf") drift between message
      header stamp and sensor-provided time.
+  - ``jit`` measured jitter of ROS time stamps vs sensor time stamps.
   - ``ev`` event rate in millions/sec
   - ``%ON`` ratio of ON events to total (ON + OFF) events
   - ``tr`` rate of trigger messages
@@ -88,8 +89,8 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
   This time is usually negative, meaning the trigger event occurs before the frame based camera driver puts a header stamp on the image. A typical output will look like this:
 
   ```text
-  [INFO] [1763569527.811228122] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.531 ms
-  [INFO] [1763569528.811002310] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.868 ms
+  [INFO] [1763569527.811228122] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.531 ms +/- 0.497 ms
+  [INFO] [1763569528.811002310] [trigger_delay]: frame rate:   1.000 Hz, trigger rate:   1.000 Hz, trigger delay: -3.868 ms +/- 0.418 ms
   ```
 
 - ``ros2 run event_camera_tools event_rate [-b bag] [-r <rate_file>] [-t <trigger_file>] [-p period_ns] <ros_topic>``
@@ -105,10 +106,12 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
 
   Converts bags with evt3 event_camera_msgs to raw file. The ``camera_type`` argument is necessary to produce a valid header for
   the raw file.
-- ``ros2 run event_camera_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> -w <sensor_width> -h <sensor_height> -p <packet_duration_ms>``
+- ``ros2 run event_camera_tools raw_to_bag -t <topic> -b <bag_file> -i <input_raw_file> [-I (ignore header)] [-w <sensor_width>] [-h <sensor_height>] -p <packet_duration_ms>``
 
   Converts raw file into bag with evt3 event_camera_msgs. The ``packet_duration_ms`` gives the time slice (in  milliseconds) per ROS packet. The default is 10ms. Choose this parameter smaller to get lower processing latencies.
-
+  Unless you pull the ``-I`` flag, the sensor geometry, the encoding, and the date/time are extracted from the header of the ``raw`` file.
+  The ROS header stamps are computed by assuming that the first event sensor time coincides with the ROS start time, and that host clock (ROS time) and sensor clock (sensor time) run at identical rates.
+  
 - ``ros2 run event_camera_tools movie_maker -f <fps> -b <bag_name> -t <topic>``
 
   Produces sequence of frame images.
@@ -133,10 +136,12 @@ and follow the [instructions here](https://github.com/ros-misc-utilities/.github
 
   Creates file with 5 columns (sensor time, ros time, x, y, polarity) for plotting. Also useful for clear text viewing of events in bag file.
 
-- ``ros2 run event_camera_tools event_statics -b name_of_bag -t <topic> [-s <scale_file>]``
+- ``ros2 run event_camera_tools event_statics -b name_of_bag -t <topic> [-s <scale_file>] [-m max_delta_time]``
 
   Computes the per-pixel number of ON and OFF events in a bag and writes them to ``scale_file.txt`` (default).
   The file has alternatingly the number of OFF and ON events in row major order, with line breaks after each row.
+  This tool also performs sanity checks: event time going backwards or time jumping forward, and that elapsed
+  host time matches elapsed sensor time.
 
 ## License
 

@@ -29,19 +29,21 @@ void usage()
 {
   std::cout << "usage:" << std::endl;
   std::cout << "raw_to_bag -b name_of_bag_file -i name_of_raw_file -t topic -f "
-               "frame_id -w width -h height [-p packet_period_ms] [-T start_time(UTC sec)]"
+               "frame_id [-I (ignore header)] [-w width] [-h height] [-p packet_period_ms] [-T "
+               "start_time(UTC sec)]"
             << std::endl;
 }
 namespace event_camera_tools
 {
 using event_camera_codecs::EventPacket;
 
-class MessageUpdaterEvt3 : public event_camera_codecs::EventProcessor
+class MessageUpdater : public event_camera_codecs::EventProcessor
 {
 public:
-  explicit MessageUpdaterEvt3(
+  explicit MessageUpdater(
     const std::string & bagName, const std::string & topic, const std::string & frameId,
-    uint32_t width, uint32_t height, uint64_t framePeriod, ros_compat::Time initialTime)
+    uint32_t width, uint32_t height, uint64_t framePeriod, ros_compat::Time initialTime,
+    const std::string & encoding)
   : topic_(topic), startRosTime_(initialTime), framePeriod_(framePeriod)
   {
     writer_ = std::make_unique<ros_compat::Writer>();
@@ -54,13 +56,13 @@ public:
     msg_.header.frame_id = frameId;
     msg_.width = width;
     msg_.height = height;
-    msg_.encoding = "evt3";
+    msg_.encoding = encoding;
     msg_.is_bigendian = check_endian::isBigEndian();
     msg_.seq = 0;
-    decoder_ = decoderFactory_.getInstance("evt3", width, height);
+    decoder_ = decoderFactory_.getInstance(encoding, width, height);
     if (!decoder_) {
-      std::cerr << "evt3 not supported for decoding!" << std::endl;
-      throw(std::runtime_error("evt3 not supported!"));
+      std::cerr << encoding << " not supported for decoding!" << std::endl;
+      throw(std::runtime_error(encoding + " not supported!"));
     }
   }
   void createTopic(const std::string & topic)
@@ -88,11 +90,11 @@ public:
   void finished() override {}
   void rawData(const char *, size_t) override {}
 
-  ~MessageUpdaterEvt3() { writer_.reset(); }
+  ~MessageUpdater() { writer_.reset(); }
 
   bool findFirstSensorTime(const uint8_t * data, size_t len)
   {
-    auto decoder = decoderFactory_.newInstance("evt3");
+    auto decoder = decoderFactory_.newInstance(msg_.encoding);
     decoder->setGeometry(msg_.width, msg_.height);
     return (decoder->findFirstSensorTime(data, len, &firstSensorTime_));
   }
@@ -163,8 +165,8 @@ private:
   EventPacket msg_;
   std::string topic_;
   size_t numEvents_[2]{0, 0};
-  event_camera_codecs::DecoderFactory<EventPacket, MessageUpdaterEvt3> decoderFactory_;
-  event_camera_codecs::Decoder<EventPacket, MessageUpdaterEvt3> * decoder_;
+  event_camera_codecs::DecoderFactory<EventPacket, MessageUpdater> decoderFactory_;
+  event_camera_codecs::Decoder<EventPacket, MessageUpdater> * decoder_;
   bool hasValidRosTime_{false};
   ros_compat::Time startRosTime_;
   bool hasValidSensorTime_{false};
@@ -175,15 +177,74 @@ private:
   uint64_t headerSensorTime_{0};  // XXX debug
 };
 
-static void skip_header(std::fstream & in)
+static std::vector<std::string> split_string(const std::string & s, char delim = ' ')
+{
+  std::stringstream ss(s);
+  std::string tmp;
+  std::vector<std::string> words;
+  while (getline(ss, tmp, delim)) {
+    words.push_back(tmp);
+  }
+  return (words);
+}
+
+// from https://stackoverflow.com/a/48511977/8287432
+
+static int64_t date_to_sec_since_epoch(
+  const std::string & str, const std::string & format = "%Y-%m-%d %H:%M:%S")
+{
+  std::tm time_struct = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  const char * result = strptime(str.c_str(), format.c_str(), &time_struct);
+  if (result == nullptr) {
+    throw std::runtime_error("date_to_sec_since_epoch: failed to parse date string: " + str);
+  }
+  const std::time_t tt = timegm(&time_struct);
+  // Convert the time_t to a std::chrono::system_clock::time_point
+  auto time_point = std::chrono::system_clock::from_time_t(tt);
+  // Get the duration since the epoch (which is already UTC 1970-01-01)
+  auto duration_since_epoch = time_point.time_since_epoch();
+  // Cast the duration to seconds and get the count
+  return (std::chrono::duration_cast<std::chrono::seconds>(duration_since_epoch).count());
+}
+
+static void read_header(
+  std::fstream & in, int * width, int * height, std::string * encoding, double * start_time,
+  bool ignore_header)
 {
   int c;
   while ((c = in.peek()) == '%') {
     std::string line;
     std::getline(in, line);
+    if (!ignore_header) {
+      const auto vec = split_string(line);
+      if (vec.size() < 3) {
+        continue;
+      }
+      if (vec[1] == "geometry") {
+        const auto geom = split_string(vec[2], 'x');
+        if (geom.size() == 2) {
+          *width = std::stoi(geom[0]);
+          *height = std::stoi(geom[1]);
+          std::cout << "found geometry in header: " << *width << " x " << *height << std::endl;
+        }
+      }
+      if (vec[1] == "evt") {
+        if (vec[2] != "3.0") {
+          throw(std::runtime_error("only evt 3.0 format supported!"));
+        }
+        *encoding = "evt3";
+        std::cout << "found evt format in header: " << *encoding << std::endl;
+      }
+      if (vec[1] == "date" && vec.size() == 4 && *start_time < 0.0) {
+        const std::string datetime = vec[2] + " " + vec[3];
+        const auto t_epoch = date_to_sec_since_epoch(datetime);
+        *start_time = static_cast<double>(t_epoch);
+        std::cout << "found UTC start time in header: " << datetime << " = " << t_epoch
+                  << " sec since epoch." << std::endl;
+      }
+    }
   }
 }
-
 }  // namespace event_camera_tools
 
 int main(int argc, char ** argv)
@@ -201,13 +262,17 @@ int main(int argc, char ** argv)
   const int bufSize(1000000);
   double packetDurationMillis(1);
   double startTimeSec{-1.0};
-  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:T:p:")) != -1) {
+  bool ignore_header = false;
+  while ((opt = getopt(argc, argv, "b:i:t:f:h:w:T:Ip:")) != -1) {
     switch (opt) {
       case 'b':
         outFile = optarg;
         break;
       case 'i':
         inFile = optarg;
+        break;
+      case 'I':
+        ignore_header = true;
         break;
       case 'p':
         packetDurationMillis = std::stod(optarg);
@@ -239,23 +304,25 @@ int main(int argc, char ** argv)
     usage();
     return (-1);
   }
-  if (height == 0 || width == 0) {
+  if (ignore_header && (height == 0 || width == 0)) {
     std::cout << "missing geometry, must specify height and width!" << std::endl;
     usage();
     return (-1);
   }
   const auto start = std::chrono::high_resolution_clock::now();
   const uint64_t framePeriod = static_cast<uint64_t>(packetDurationMillis * 1000000);
-  event_camera_tools::MessageUpdaterEvt3 updater(
-    outFile, topic, frameId, width, height, framePeriod,
-    startTimeSec < 0 ? ros_compat::now() : ros_compat::time_from_sec(startTimeSec));
   std::fstream in;
   in.open(inFile, std::ios::in | std::ios::binary);
   if (!in.is_open()) {
     std::cerr << "cannot open file: " << inFile << std::endl;
     return (-1);
   }
-  event_camera_tools::skip_header(in);
+  std::string encoding = "evt3";
+  event_camera_tools::read_header(in, &width, &height, &encoding, &startTimeSec, ignore_header);
+  event_camera_tools::MessageUpdater updater(
+    outFile, topic, frameId, width, height, framePeriod,
+    startTimeSec < 0 ? ros_compat::now() : ros_compat::time_from_sec(startTimeSec), encoding);
+
   std::vector<char> buffer(bufSize);
   size_t bytesRead(0);
   while (true) {

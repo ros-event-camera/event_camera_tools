@@ -114,7 +114,7 @@ public:
     updateCount(
       t, &trigger_last_time_, &trigger_times_, &num_triggers_, &total_trigger_time_,
       &trigger_period_);
-    checkFramesVsTriggerEvents();
+    matchFramesToTriggerEvents();
   }
 
 private:
@@ -123,29 +123,69 @@ private:
     const uint64_t t = rclcpp::Time(msg->header.stamp).nanoseconds();
     updateCount(
       t, &frame_last_time_, &frame_times_, &num_frames_, &total_frame_time_, &frame_period_);
-    checkFramesVsTriggerEvents();
+    matchFramesToTriggerEvents();
   }
 
-  void checkFramesVsTriggerEvents()
+  void updateStats(uint64_t trigger_time, uint64_t frame_time)
   {
-    const uint64_t period_match = static_cast<uint64_t>(trigger_period_) >> 2;
-    if (period_match == 0) {
-      RCLCPP_WARN_THROTTLE(
-        logger(), *this->get_clock(), 1000,
-        "no event triggers received yet to compute trigger period!");
+    const int64_t dt = static_cast<int64_t>(trigger_time) - static_cast<int64_t>(frame_time);
+    total_trigger_delay_ += dt;
+    total_trigger_delay2_ += (1e-9 * dt) * (1e-9 * dt);
+    num_trigger_delays_++;
+  }
+
+  void matchFramesToTriggerEvents()
+  {
+    while (!trigger_times_.empty() && !frame_times_.empty() &&
+           trigger_times_.front() == frame_times_.front()) {
+      updateStats(trigger_times_.front(), frame_times_.front());
+      trigger_times_.erase(trigger_times_.begin());
+      frame_times_.erase(frame_times_.begin());
+    }
+    if (trigger_times_.empty() || frame_times_.empty()) {
       return;
     }
-
-    for (auto t_it_loop = trigger_times_.begin(); t_it_loop != trigger_times_.end();) {
-      auto t_it = t_it_loop++;
-      for (auto f_it_loop = frame_times_.begin(); f_it_loop != frame_times_.end();) {
-        auto f_it = f_it_loop++;
-        if ((*t_it + period_match > *f_it) && (*t_it < *f_it + period_match)) {
-          const int64_t dt = static_cast<int64_t>(*t_it) - static_cast<int64_t>(*f_it);
-          total_trigger_delay_ += dt;
-          num_trigger_delays_++;
-          frame_times_.erase(frame_times_.begin(), f_it_loop);  // does not include the stop iter!
-          trigger_times_.erase(trigger_times_.begin(), t_it_loop);
+    const auto t_t = trigger_times_.front();
+    const auto t_f = frame_times_.front();
+    if (t_t < t_f) {
+      // trigger comes before frame, check if frame time can fit
+      // between two triggers
+      for (auto it = trigger_times_.begin(); it != trigger_times_.end();) {
+        auto it_c = it++;
+        if (it != trigger_times_.end() && *it_c <= t_f && t_f < *it) {
+          // it does fit between two triggers
+          if (t_f - *it_c < *it - t_f) {
+            // it's closer to the first trigger
+            updateStats(*it_c, t_f);
+            trigger_times_.erase(trigger_times_.begin(), it);
+          } else {
+            // it's closer to the second trigger
+            updateStats(*it, t_f);
+            auto itp1 = it;
+            trigger_times_.erase(trigger_times_.begin(), ++itp1);
+          }
+          frame_times_.erase(frame_times_.begin());
+          return;
+        }
+      }
+    } else {
+      // frame comes before trigger, check if trigger time can fit
+      for (auto it = frame_times_.begin(); it != frame_times_.end();) {
+        auto it_c = it++;
+        if (it != frame_times_.end() && *it_c <= t_t && t_t < *it) {
+          // it does fit between two frames
+          if (t_t - *it_c < *it - t_t) {
+            // it's closer to the first frame
+            updateStats(t_t, *it_c);
+            frame_times_.erase(frame_times_.begin(), it);
+          } else {
+            // it's closer to the second frame
+            updateStats(t_t, *it);
+            auto itp1 = it;
+            frame_times_.erase(frame_times_.begin(), ++itp1);
+          }
+          trigger_times_.erase(trigger_times_.begin());
+          return;
         }
       }
     }
@@ -158,15 +198,24 @@ private:
     const double trigger_rate =
       total_trigger_time_ > 0 ? num_triggers_ / static_cast<double>(total_trigger_time_) : 0;
     const double trigger_delay =
-      num_trigger_delays_ > 0 ? static_cast<double>(total_trigger_delay_) / num_trigger_delays_ : 0;
+      num_trigger_delays_ > 0
+        ? 1e-9 * static_cast<double>(total_trigger_delay_) / num_trigger_delays_
+        : 0;
+    const double td2 = num_trigger_delays_ > 0 ? total_trigger_delay2_ / num_trigger_delays_ : 0;
+    const double td_stddev = std::sqrt(std::abs(td2 - trigger_delay * trigger_delay));
     RCLCPP_INFO(
-      logger(), "frame rate: %7.3lf Hz, trigger rate: %7.3lf Hz, trigger delay: %6.3lf ms",
-      frame_rate * 1e9, trigger_rate * 1e9, trigger_delay * 1e-6);
+      logger(),
+      "frame rate: %7.3lf Hz, trigger rate: %7.3lf Hz, trigger delay: %6.3lf ms +/- %6.3lf ms",
+      frame_rate * 1e9, trigger_rate * 1e9, trigger_delay * 1e3, td_stddev * 1e3);
+
+    // RCLCPP_INFO_STREAM(
+    // logger(), "num trig: " << num_triggers_ << " num trig delay: " << num_trigger_delays_);
     num_triggers_ = 0;
     total_trigger_time_ = 0;
     num_frames_ = 0;
     total_frame_time_ = 0;
     total_trigger_delay_ = 0;
+    total_trigger_delay2_ = 0;
     num_trigger_delays_ = 0;
   }
   // ---------  variables
@@ -182,6 +231,7 @@ private:
   uint64_t frame_last_time_{0};
   size_t num_frames_{0};
   int64_t total_trigger_delay_{0};
+  double total_trigger_delay2_{0};
   size_t num_trigger_delays_{0};
   double trigger_period_{0};
   double frame_period_{0};
@@ -218,14 +268,21 @@ void EventSub::eventCallback(const EventPacketConstPtr & msg)
 
 int main(int argc, char ** argv)
 {
-  int opt;
-
+  const auto non_ros_args = rclcpp::remove_ros_arguments(argc, argv);
   rclcpp::init(argc, argv);
+
+  std::vector<char *> custom_argv_ptrs;
+  for (const auto & arg : non_ros_args) {
+    custom_argv_ptrs.push_back(const_cast<char *>(arg.c_str()));
+  }
+  char ** custom_argv = custom_argv_ptrs.data();
+  int custom_argc = static_cast<int>(non_ros_args.size());
+  int opt;
 
   std::string event_topic;
   std::string trigger_topic;
   uint8_t edge = 1;  // default: rising edge
-  while ((opt = getopt(argc, argv, "t:d")) != -1) {
+  while ((opt = getopt(custom_argc, custom_argv, "t:d")) != -1) {
     switch (opt) {
       case 'd':
         edge = 0;  // use falling edge
@@ -245,7 +302,7 @@ int main(int argc, char ** argv)
     }
   }
 
-  if (optind != argc - 1) {
+  if (optind != custom_argc - 1) {
     std::cout << "expected event topic!" << std::endl;
     usage();
     return (-1);
@@ -255,7 +312,7 @@ int main(int argc, char ** argv)
     usage();
     return (-1);
   }
-  event_topic = argv[optind];
+  event_topic = custom_argv[optind];
   auto node = std::make_shared<event_camera_tools::TriggerDelay>(
     event_topic, trigger_topic, edge, rclcpp::NodeOptions());
   rclcpp::spin(node);
