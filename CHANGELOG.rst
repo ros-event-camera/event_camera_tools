@@ -2,8 +2,8 @@
 Changelog for package event_camera_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+3.1.3 (2026-04-26)
+------------------
 * fix c++ standard 20 warnings
 * added seqno gap detection to event_statistics
 * store in mcap mode (also on humble)
