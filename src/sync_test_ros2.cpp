@@ -62,7 +62,7 @@ public:
 
     timer_ = rclcpp::create_timer(
       this, this->get_clock(), rclcpp::Duration::from_seconds(1.0),
-      [=]() { this->timerExpired(); });
+      [this]() { this->timerExpired(); });
 
     auto qos = rclcpp::QoS(rclcpp::KeepLast(1)).best_effort().durability_volatile();
     eventSub_[0].sub_ = this->create_subscription<EventPacket>(
