@@ -81,7 +81,7 @@ public:
     event_sub_.setEdge(edge);
     timer_ = rclcpp::create_timer(
       this, this->get_clock(), rclcpp::Duration::from_seconds(1.0),
-      [=]() { this->statsTimerExpired(); });
+      [this]() { this->statsTimerExpired(); });
     RCLCPP_INFO_STREAM(logger(), "subscribing to events on " << event_topic);
     RCLCPP_INFO_STREAM(logger(), "subscribing for trigger frames on " << trigger_topic);
     RCLCPP_INFO_STREAM(logger(), "using " << (edge ? "UP" : "DOWN") << " edge trigger");

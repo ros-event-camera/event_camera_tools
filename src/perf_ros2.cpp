@@ -47,7 +47,7 @@ public:
       topic, qos, std::bind(&Perf::eventMsg, this, std::placeholders::_1));
     timer_ = rclcpp::create_timer(
       this, this->get_clock(), rclcpp::Duration::from_seconds(2.0),
-      [=]() { this->timerExpired(); });
+      [this]() { this->timerExpired(); });
   }
   // ---------- from the EventProcessor interface:
   void eventCD(uint64_t sensor_time, uint16_t, uint16_t, uint8_t p) override
