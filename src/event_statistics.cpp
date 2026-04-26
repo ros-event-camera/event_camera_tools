@@ -52,6 +52,7 @@ static std::tuple<size_t, size_t, int64_t, int64_t> process_bag(
   bool topic_found = false;
   int64_t start_time = 0;
   int64_t end_time = 0;
+  int64_t last_seqno = -1;
   while (reader.has_next()) {
     auto msg = reader.read_next();
     if (msg->topic_name == topic) {
@@ -72,6 +73,12 @@ static std::tuple<size_t, size_t, int64_t, int64_t> process_bag(
       decoder->decode(&(m.events[0]), m.events.size(), &stats);
       numBytes += m.events.size();
       topic_found = true;
+      const int64_t diff = m.seq - last_seqno;
+      if (last_seqno != -1 && diff != 1) {
+        std::cout << "WARNING: found seqno gap of " << diff << " packets: " << last_seqno << " -> "
+                  << m.seq << std::endl;
+      }
+      last_seqno = m.seq;
     }
   }
   if (!topic_found) {
