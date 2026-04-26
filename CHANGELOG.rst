@@ -2,6 +2,15 @@
 Changelog for package event_camera_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix c++ standard 20 warnings
+* added seqno gap detection to event_statistics
+* store in mcap mode (also on humble)
+* provide timestamps file to correlate frame numbers with time stamps
+* add dependency on ament_cmake_test for humble builds
+* Contributors: Bernd Pfrommer
+
 3.1.2 (2026-04-07)
 ------------------
 * rely on event_camera_codecs and _msgs packages
