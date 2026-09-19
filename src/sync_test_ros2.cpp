@@ -76,6 +76,7 @@ public:
     if (t_base != 0) {
       baseVsStampShift_[id] +=
         (static_cast<int64_t>(t_stamp) - static_cast<int64_t>(t_base)) * 1e-9;
+      baseVsStampShiftCounter_++;
     }
     count_[id]++;
     int64_t dt = (id == 0) ? (t_sensor - eventSub_[1].lastSensorTime_)
@@ -91,9 +92,11 @@ private:
     if (count_[0] && count_[1] > 0) {
       const auto count = count_[0] + count_[1];
       const double avg = sumOfDiffs_ / count;
-      const double shift[2] = {baseVsStampShift_[0] / count, baseVsStampShift_[1] / count};
       printf("avg sensor diff: %8.5lfs, count: %" PRIu64 "\n", avg, count);
-      printf("base-stamp shift:  [0]: %8.5lfs, [1]: %8.5lfs\n", shift[0], shift[1]);
+      if (baseVsStampShiftCounter_ != 0) {
+        const double shift[2] = {baseVsStampShift_[0] / count, baseVsStampShift_[1] / count};
+        printf("base-stamp shift:  [0]: %8.5lfs, [1]: %8.5lfs\n", shift[0], shift[1]);
+      }
     } else {
       RCLCPP_WARN_STREAM(
         get_logger(), "no messages received: cam0: " << count_[0] << " cam1:  " << count_[1]);
@@ -109,12 +112,14 @@ private:
     sumOfDiffs_ = 0;
     baseVsStampShift_[0] = 0;
     baseVsStampShift_[1] = 0;
+    baseVsStampShiftCounter_ = 0;
   }
   // ---------  variables
   rclcpp::TimerBase::SharedPtr timer_;
   EventSub eventSub_[2];
   double sumOfDiffs_{0};
   double baseVsStampShift_[2] = {0, 0};
+  uint64_t baseVsStampShiftCounter_{0};
   uint64_t count_[2]{0, 0};
   int64_t maxDiff_;
   int64_t minDiff_;
