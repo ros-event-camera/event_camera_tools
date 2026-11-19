@@ -2,8 +2,8 @@
 Changelog for package event_camera_tools
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+3.1.6 (2026-11-19)
+------------------
 * added cmath header include
 * only print base shift when base is available (DVS)
 * Contributors: Bernd Pfrommer
