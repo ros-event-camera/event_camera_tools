@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <cmath>
 #include <event_camera_msgs/msg/event_packet.hpp>
 #include <fstream>
 #include <rclcpp/rclcpp.hpp>
